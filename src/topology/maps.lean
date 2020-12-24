@@ -161,6 +161,10 @@ def quotient_map {α : Type*} {β : Type*} [tα : topological_space α] [tβ : t
   (f : α → β) : Prop :=
 function.surjective f ∧ tβ = tα.coinduced f
 
+lemma quotient_map_iff {α β : Type*} [topological_space α] [topological_space β] {f : α → β} :
+  quotient_map f ↔ function.surjective f ∧ ∀ s : set β, is_open s ↔ is_open (f ⁻¹' s) :=
+and_congr iff.rfl topological_space_eq_iff
+
 namespace quotient_map
 variables [topological_space α] [topological_space β] [topological_space γ] [topological_space δ]
 
@@ -235,7 +239,7 @@ lemma to_quotient_map {f : α → β}
     split,
     { exact continuous_def.1 cont s },
     { assume h,
-      rw ← @image_preimage_eq _ _ _ s surj,
+      rw ← surj.image_preimage s,
       exact open_map _ h }
   end⟩
 
