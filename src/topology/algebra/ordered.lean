@@ -1421,22 +1421,6 @@ begin
   exact λ x hg hf, mul_le_mul_of_nonneg_left hg.le hf
 end
 
-/-- In a linearly ordered field with the order topology, if `f` tends to `at_bot` and `g` tends to
-a positive constant `C` then `f * g` tends to `at_bot`. -/
-lemma filter.tendsto.at_bot_mul {C : α} (hC : 0 < C) (hf : tendsto f l at_bot)
-  (hg : tendsto g l (𝓝 C)) :
-  tendsto (λ x, (f x * g x)) l at_bot :=
-by simpa [(∘)]
-  using tendsto_neg_at_top_at_bot.comp ((tendsto_neg_at_bot_at_top.comp hf).at_top_mul hC hg)
-
-/-- In a linearly ordered field with the order topology, if `f` tends to `at_bot` and `g` tends to
-a negative constant `C` then `f * g` tends to `at_top`. -/
-lemma filter.tendsto.at_bot_mul_neg {C : α} (hC : C < 0) (hf : tendsto f l at_bot)
-  (hg : tendsto g l (𝓝 C)) :
-  tendsto (λ x, (f x * g x)) l at_top :=
-by simpa [(∘)]
-  using tendsto_neg_at_bot_at_top.comp ((tendsto_neg_at_bot_at_top.comp hf).at_top_mul_neg hC hg)
-
 end linear_ordered_field
 
 section linear_ordered_field
