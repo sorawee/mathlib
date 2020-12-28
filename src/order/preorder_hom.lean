@@ -153,16 +153,15 @@ variables {α β : Type*} [partial_order α] [partial_order β]
 variables (f : ((<) : α → α → Prop) ↪r ((<) : β → β → Prop))
 
 /-- A map between partial orders that is strictly monotonic is weakly monotonic. -/
-@[simps] def to_preorder_hom : α →ₘ β :=
+def to_preorder_hom : α →ₘ β :=
 { to_fun    := f,
   monotone' := λ a b h, by
   { by_cases hab : a = b,
     { rw hab, },
     { rw [ne.le_iff_lt hab, f.map_rel_iff] at h, exact le_of_lt h, }, }, }
 
-lemma to_preorder_hom_apply (a : α) : f.to_preorder_hom a = f a := rfl
+@[simp] lemma to_preorder_hom_coe_fn : ⇑f.to_preorder_hom = f := rfl
 
-lemma to_preorder_hom_injective : function.injective f.to_preorder_hom :=
-by { intros a b h, simp only [to_preorder_hom_apply] at h, exact f.injective h, }
+lemma to_preorder_hom_injective : function.injective f.to_preorder_hom := λ _ _ h, f.injective h
 
 end rel_embedding
