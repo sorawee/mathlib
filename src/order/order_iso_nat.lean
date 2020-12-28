@@ -48,14 +48,16 @@ end rel_embedding
 
 namespace partial_order
 
-variables (α : Type*) [preorder α]
+variables (α : Type*)
 
 /-- For partial orders, one of the many equivalent forms of well-foundedness is the following
 flavour of "ascending chain condition". -/
-class satisfies_acc : Prop :=
+class satisfies_acc [preorder α] : Prop :=
 (acc : ∀ (a : ℕ →ₘ α), ∃ n, ∀ m, n ≤ m → a n = a m)
 
-lemma wf_iff_satisfies_acc (α : Type*) [partial_order α] :
+variables [partial_order α]
+
+lemma wf_iff_satisfies_acc :
   well_founded ((>) : α → α → Prop) ↔ satisfies_acc α :=
 begin
   split; intros h,
@@ -69,7 +71,7 @@ begin
     exact n.succ_ne_self.symm (rel_embedding.to_preorder_hom_injective _ (hn _ n.le_succ)), },
 end
 
-instance (α : Type*) [partial_order α] [satisfies_acc α] : has_well_founded α :=
+instance [satisfies_acc α] : has_well_founded α :=
 { r  := (>),
   wf := by { rw wf_iff_satisfies_acc, apply_instance, }, }
 
