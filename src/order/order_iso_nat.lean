@@ -48,7 +48,7 @@ end rel_embedding
 
 namespace partial_order
 
-variables (α : Type*) [partial_order α]
+variables (α : Type*) [preorder α]
 
 /-- For partial orders, one of the many equivalent forms of well-foundedness is the following
 flavour of "ascending chain condition". -/
