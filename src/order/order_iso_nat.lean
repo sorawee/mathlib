@@ -69,4 +69,8 @@ begin
     exact n.succ_ne_self.symm (rel_embedding.to_preorder_hom_injective _ (hn _ n.le_succ)), },
 end
 
+instance (α : Type*) [partial_order α] [satisfies_acc α] : has_well_founded α :=
+{ r  := (>),
+  wf := by { rw wf_iff_satisfies_acc, apply_instance, }, }
+
 end partial_order
