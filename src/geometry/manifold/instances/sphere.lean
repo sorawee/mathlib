@@ -326,37 +326,27 @@ inner_left_of_mem_orthogonal (mem_span_singleton_self v) hw
 lemma prod_zero_right {w : E} (hw : w ∈ (ℝ ∙ v)†) : ⟪v, w⟫_ℝ = 0 :=
 inner_right_of_mem_orthogonal (mem_span_singleton_self v) hw
 
--- abbreviation projR : E →L[ℝ] ℝ := inner_left v
-
-abbreviation proj' : E →L[ℝ] (ℝ ∙ v)† :=
-orthogonal_projection ((ℝ ∙ v)†) -- (span ℝ {v})
-
-
-lemma sphere_inter_hyperplane {v : E} (hv : ∥v∥ = 1) {x : sphere (0:E) 1} (hx : inner_left v x = (1:ℝ)) :
-  x = ⟨v, by simp [hv]⟩ :=
+lemma proj_orthogonal_singleton (v : E) :
+  orthogonal_projection ((ℝ ∙ v)†) v = 0 :=
 begin
   ext,
-  simpa [← inner_eq_norm_mul_iff_of_mem_sphere hv] using hx
+  refine (eq_orthogonal_projection_of_mem_of_inner_eq_zero' _ _).symm;
+  { simp [mem_span_singleton_self] }
 end
 
-lemma sphere_inter_hyperplane'' {v : E} (hv : ∥v∥ = 1) {x : sphere (0:E) 1} (hx : ↑x ≠ v) :
-  inner_left v x < (1:ℝ) :=
-begin
-  refine (inner_lt_one_iff_of_mem_sphere hv _).mpr hx,
-  simp
-end
-
-
-lemma sphere_inter_hyperplane'  {v : E} (hv : ∥v∥ = 1) :
-  ({⟨v, by simp [hv]⟩}ᶜ : set (sphere (0:E) 1)) ⊆ coe ⁻¹' {w : E | inner_left v w ≠ (1:ℝ)} :=
-λ w h, h ∘ (sphere_inter_hyperplane hv)
-
+@[reducible] def proj' : E →L[ℝ] (ℝ ∙ v)† := orthogonal_projection ((ℝ ∙ v)†)
 
 /-- Stereographic projection, forward direction. This is a map from an inner product space `E` to
 the orthogonal complement of an element `v` of `E`. It is smooth away from the affine hyperplane
 through `v` parallel to the orthogonal complement.  It restricts on the sphere to the stereographic
 projection. -/
 def stereo_to_fun (x : E) : (ℝ ∙ v)† := (2 / ((1:ℝ) - inner_left v x)) • proj' v x
+
+variables {v}
+
+@[simp] lemma stereo_to_fun_apply (x : E) :
+  stereo_to_fun v x = (2 / ((1:ℝ) - inner_left v x)) • proj' v x :=
+rfl
 
 lemma continuous_on_stereo_to_fun :
   continuous_on (stereo_to_fun v) {x : E | inner_left v x ≠ (1:ℝ)} :=
@@ -368,15 +358,15 @@ begin
     exact h (sub_eq_zero.mp h').symm }
 end
 
+variables (v)
+
 def stereo_inv_fun_aux (w : E) : E := (∥w∥ ^ 2 + 4)⁻¹ • ((4:ℝ) • w + (∥w∥ ^ 2 - 4) • v)
+
+variables {v}
 
 @[simp] lemma stereo_inv_fun_aux_apply (w : E) :
   stereo_inv_fun_aux v w = (∥w∥ ^ 2 + 4)⁻¹ • ((4:ℝ) • w + (∥w∥ ^ 2 - 4) • v) :=
 rfl
-
-variables {v}
-
-
 
 lemma stereo_inv_fun_aux_mem (hv : ∥v∥ = 1) {w : E} (hw : w ∈ (ℝ ∙ v)†) :
   stereo_inv_fun_aux v w ∈ (sphere (0:E) 1) :=
@@ -396,7 +386,6 @@ begin
   ring,
 end
 
-
 /-- Stereographic projection, reverse direction.  This is a map from the orthogonal complement of a
 unit vector `v` in an inner product space `E` to the unit sphere in `E`. -/
 def stereo_inv_fun (hv : ∥v∥ = 1) (w : (ℝ ∙ v)†) : sphere (0:E) 1 :=
@@ -406,7 +395,7 @@ def stereo_inv_fun (hv : ∥v∥ = 1) (w : (ℝ ∙ v)†) : sphere (0:E) 1 :=
   (stereo_inv_fun hv w : E) = (∥w∥ ^ 2 + 4)⁻¹ • ((4:ℝ) • w + (∥w∥ ^ 2 - 4) • v) :=
 rfl
 
-lemma ne_north_pole (hv : ∥v∥ = 1) (w : (ℝ ∙ v)†) :
+lemma stereo_inv_fun_ne_north_pole (hv : ∥v∥ = 1) (w : (ℝ ∙ v)†) :
   stereo_inv_fun hv w ≠ (⟨v, inner_product_space.mem_sphere_zero.mpr hv⟩ : sphere (0:E) 1) :=
 begin
   refine subtype.ne_of_val_ne _,
@@ -453,7 +442,9 @@ begin
     { simp },
     { rw ← projR_eq'' hv x,
       simp [norm_smul, hv, real.norm_eq_abs, abs_sq_eq, a] } },
-  have ha : a < 1 := sphere_inter_hyperplane'' hv hx,
+  have ha : a < 1,
+  { refine (inner_lt_one_iff_of_mem_sphere hv _).mpr hx,
+    simp },
   have ha' : 1 - a ≠ 0 := by linarith,
   have ha''' : ∥1 - a∥ ^ 2 = (1 - a) ^ 2 := by rw [real.norm_eq_abs, abs_sq_eq],
   have h_denom : (2 / ∥1 - a∥ * ∥y∥) ^ 2 + 4 ≠ 0,
@@ -488,43 +479,21 @@ begin
     nlinarith }
 end
 
-lemma inner_left_self {v : E} (hv : ∥v∥ = 1) : inner_left v v = (1:ℝ) :=
-by simp [real_inner_self_eq_norm_square, hv]
-
-lemma inner_left_orthogonal (v : E) {w : E} (hw : w ∈ (ℝ ∙ v)†) :
-  @inner_left ℝ E _ _ v w = (0:ℝ) :=
-hw _ (mem_span_singleton_self v)
-
-lemma proj_orthogonal_singleton (v : E) :
-  orthogonal_projection ((ℝ ∙ v)†) v = 0 :=
-begin
-  symmetry,
-  ext,
-  apply eq_orthogonal_projection_of_mem_of_inner_eq_zero',
-  { simp },
-  { simp [mem_span_singleton_self] },
-end
-
-lemma proj_orthogonal (v : E) {w : E} (hw : w ∈ (ℝ ∙ v)†) :
-  ↑(orthogonal_projection ((ℝ ∙ v)†) w) = w :=
-orthogonal_projection_mem_subspace_eq_self hw
-
 lemma stereo_right_inv (hv : ∥v∥ = 1) (w : (ℝ ∙ v)†) :
   (stereo_to_fun v ∘ coe) (stereo_inv_fun hv w) = w :=
 begin
-  have h₁ : proj' v v = 0 := proj_orthogonal_singleton v,
-  have h₂ : proj' v w = w := by simpa using orthogonal_projection_mem_subspace_eq_self w.2,
-  have h₃ : inner_left v w = (0:ℝ) := inner_left_orthogonal v w.2,
-  have h₄ : inner_left v v = (1:ℝ) := inner_left_self hv,
-  simp only [stereo_to_fun, stereo_inv_fun, stereo_inv_fun_aux, function.comp_app],
-  simp only [h₁, h₂, h₃, h₄, add_zero, continuous_linear_map.map_add, zero_add,
-  subtype.coe_mk, mul_zero, smul_zero, continuous_linear_map.map_smul],
-  rw ← mul_smul,
-  rw ← mul_smul,
-  convert one_smul ℝ w,
-  have h_denom : ∥(w:E)∥ ^ 2 + 4 ≠ 0 := by nlinarith,
-  field_simp [h_denom],
-  ring
+  have : 2 / (1 - (∥(w:E)∥ ^ 2 + 4)⁻¹ * (∥(w:E)∥ ^ 2 - 4)) * (∥(w:E)∥ ^ 2 + 4)⁻¹ * 4 = 1,
+  { have : ∥(w:E)∥ ^ 2 + 4 ≠ 0 := by nlinarith,
+    field_simp,
+    ring },
+  convert congr_arg (λ c, c • w) this,
+  { have h₁ : proj' v v = 0 := proj_orthogonal_singleton v,
+    have h₂ : proj' v w = w := by simpa using orthogonal_projection_mem_subspace_eq_self w.2,
+    have h₃ : inner_left v w = (0:ℝ) := prod_zero_right v w.2,
+    have h₄ : inner_left v v = (1:ℝ) := by simp [real_inner_self_eq_norm_square, hv],
+    simp [h₁, h₂, h₃, h₄, continuous_linear_map.map_add, continuous_linear_map.map_smul,
+      mul_smul] },
+  { simp }
 end
 
 /-- Stereographic projection from the unit sphere in `E`, centred at a unit vector `v` in `E`; this
@@ -535,11 +504,11 @@ def stereographic (hv : ∥v∥ = 1) : local_homeomorph (sphere (0:E) 1) ((ℝ �
   source := {⟨v, by simp [hv]⟩}ᶜ,
   target := set.univ,
   map_source' := by simp,
-  map_target' := λ w _, ne_north_pole hv w,
+  map_target' := λ w _, stereo_inv_fun_ne_north_pole hv w,
   left_inv' := λ _ hx, stereo_left_inv hv (λ h, hx (subtype.ext h)),
   right_inv' := λ w _, stereo_right_inv hv w,
   open_source := is_open_compl_singleton,
   open_target := is_open_univ,
-  continuous_to_fun := (continuous_on_stereo_to_fun v).comp continuous_subtype_coe.continuous_on
-    (sphere_inter_hyperplane' hv),
-  continuous_inv_fun := (continuous_stereo_inv_fun hv).continuous_on }
+  continuous_to_fun := continuous_on_stereo_to_fun.comp continuous_subtype_coe.continuous_on
+    (λ w h, h ∘ subtype.ext ∘ (inner_eq_norm_mul_iff_of_mem_sphere hv (by simp)).mp),
+  continuous_inv_fun :=  (continuous_stereo_inv_fun hv).continuous_on }
