@@ -19,25 +19,6 @@ noncomputable theory
 
 open metric
 
-namespace is_R_or_C
-/-! Lemmas for `data.complex.is_R_or_C`. -/
-
-variables {𝕜 : Type*} [is_R_or_C 𝕜]
-
-lemma im_eq_zero_of_le {a : 𝕜} (h : abs a ≤ re a) : im a = 0 :=
-begin
-  rw ← zero_eq_mul_self,
-  have : re a * re a = re a * re a + im a * im a,
-  { convert is_R_or_C.mul_self_abs a;
-    linarith [re_le_abs a] },
-  linarith
-end
-
-lemma re_eq_self_of_le {a : 𝕜} (h : abs a ≤ re a) : ↑(re a) = a :=
-by { rw ← re_add_im a, simp [im_eq_zero_of_le h] }
-
-end is_R_or_C
-
 namespace inner_product_space
 /-! Lemmas for `analysis.normed_space.inner_product`. -/
 
@@ -164,10 +145,10 @@ namespace inner_product_space
 
 variables {E : Type*} [inner_product_space ℝ E]
 
-lemma inner_product_space.mem_sphere (v w : E) (r : ℝ) : w ∈ sphere v r ↔ ∥w - v∥ = r :=
+lemma mem_sphere (v w : E) (r : ℝ) : w ∈ sphere v r ↔ ∥w - v∥ = r :=
 by simp [dist_eq_norm]
 
-lemma inner_product_space.mem_sphere_zero {w : E} {r : ℝ} : w ∈ sphere (0:E) r ↔ ∥w∥ = r :=
+lemma mem_sphere_zero {w : E} {r : ℝ} : w ∈ sphere (0:E) r ↔ ∥w∥ = r :=
 by simp [dist_eq_norm]
 
 @[simp] lemma norm_of_mem_unit_sphere (x : sphere (0:E) 1) : ∥(x:E)∥ = 1 :=
@@ -261,7 +242,7 @@ end
 end inner_product_space
 
 
-variables {E : Type*} [inner_product_space ℝ E] [complete_space E]
+variables {E : Type*} [inner_product_space ℝ E]
 variables (v : E)
 
 open inner_product_space submodule
@@ -270,16 +251,16 @@ open inner_product_space submodule
 the orthogonal complement of an element `v` of `E`. It is smooth away from the affine hyperplane
 through `v` parallel to the orthogonal complement.  It restricts on the sphere to the stereographic
 projection. -/
-def stereo_to_fun (x : E) : (ℝ ∙ v)† :=
+def stereo_to_fun [complete_space E] (x : E) : (ℝ ∙ v)† :=
 (2 / ((1:ℝ) - inner_left v x)) • orthogonal_projection ((ℝ ∙ v)†) x
 
 variables {v}
 
-@[simp] lemma stereo_to_fun_apply (x : E) :
+@[simp] lemma stereo_to_fun_apply [complete_space E] (x : E) :
   stereo_to_fun v x = (2 / ((1:ℝ) - inner_left v x)) • orthogonal_projection ((ℝ ∙ v)†) x :=
 rfl
 
-lemma continuous_on_stereo_to_fun :
+lemma continuous_on_stereo_to_fun [complete_space E] :
   continuous_on (stereo_to_fun v) {x : E | inner_left v x ≠ (1:ℝ)} :=
 begin
   refine continuous_on.smul _ (orthogonal_projection ((ℝ ∙ v)†)).continuous.continuous_on,
@@ -357,6 +338,8 @@ begin
     refine (h₀.sub continuous_const).smul continuous_const },
   convert (h₁.smul h₂).comp continuous_subtype_coe
 end
+
+variables [complete_space E]
 
 lemma stereo_left_inv (hv : ∥v∥ = 1) {x : sphere (0:E) 1} (hx : (x:E) ≠ v) :
   stereo_inv_fun hv (stereo_to_fun v x) = x :=
