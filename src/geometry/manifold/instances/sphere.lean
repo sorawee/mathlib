@@ -43,6 +43,12 @@ begin
   exact hvo w hw
 end
 
+/-- The orthogonal projection onto `K` sends elements of the subtype `K` to themselves. -/
+lemma orthogonal_projection_mem_subspace_eq_self' {K : submodule 𝕜 E} [complete_space K] (v : K) :
+  orthogonal_projection K v = v :=
+by { ext, exact orthogonal_projection_mem_subspace_eq_self v.2 }
+
+
 lemma eq_proj_of_split (K : submodule 𝕜 E) [complete_space K]
   {v y z : E} (hy : y ∈ K) (hz : z ∈ K†) (hv : y + z = v) :
   y = orthogonal_projection K v :=
@@ -53,23 +59,16 @@ begin
   abel
 end
 
-lemma eq_proj_of_split' [complete_space E] (K : submodule 𝕜 E) [complete_space K]
-  {v y z : E} (hy : y ∈ K) (hz : z ∈ K†) (hv : y + z = v) :
-  z = orthogonal_projection (K†) v  :=
-begin
-  suffices hy' : y ∈ K††, -- : set E), v = y' + z,
-  { rw add_comm at hv,
-    exact eq_proj_of_split (K†) hz hy' hv },
-  simp [hy]
-end
-
 lemma sum_proj' [complete_space E] (K : submodule 𝕜 E) [complete_space K] (w : E) :
   ↑(orthogonal_projection K w) + ↑(orthogonal_projection (K†) w) = w :=
 begin
   obtain ⟨y, hy, z, hz, hwyz⟩ := K.exists_sum_mem_mem_orthogonal w,
   convert hwyz,
   { rw eq_proj_of_split K hy hz hwyz },
-  { rw eq_proj_of_split' K hy hz hwyz }
+  { suffices hy' : y ∈ K††,
+    { rw add_comm at hwyz,
+      exact (eq_proj_of_split (K†) hz hy' hwyz).symm },
+    simp [hy] }
 end
 
 
@@ -80,31 +79,20 @@ lemma sum_proj [complete_space E] (K : submodule 𝕜 E) [complete_space K] :
 by { ext w, exact sum_proj' K w }
 
 include 𝕜
-/-- Pythagorean theorem, vector inner product form. -/
-lemma norm_add_square_eq_norm_square_add_norm_square_of_inner_eq_zero' (x y : E) (h : ⟪x, y⟫ = 0) :
-  ∥x + y∥ ^ 2 = ∥x∥ ^ 2 + ∥y∥ ^ 2 :=
-begin
-  convert norm_add_square_eq_norm_square_add_norm_square_of_inner_eq_zero _ _ h;
-  simp [pow_two]
-end
 
 lemma norm_sub_crossmul (v x : E) :
   ∥(∥v∥:𝕜) • x - (∥x∥:𝕜) • v∥ * ∥(∥v∥:𝕜) • x - (∥x∥:𝕜) • v∥ = 2 * ∥x∥ * ∥v∥ * (∥x∥ * ∥v∥ - re ⟪x, v⟫) :=
 begin
-  rw norm_sub_mul_self,
-  simp [inner_smul_left, inner_smul_right, norm_smul, is_R_or_C.norm_eq_abs],
+  simp only [norm_sub_mul_self, inner_smul_left, inner_smul_right, norm_smul, norm_eq_abs,
+    conj_of_real, abs_of_real, of_real_im, of_real_re, mul_re, abs_norm_eq_norm],
   ring
 end
-
-lemma norm_sub_crossmul' (v x : E) :
-  ∥(∥v∥:𝕜) • x - (∥x∥:𝕜) • v∥ ^ 2 = 2 * ∥x∥ * ∥v∥ * (∥x∥ * ∥v∥ - re ⟪x, v⟫) :=
-by { convert norm_sub_crossmul v x, exact pow_two _ }
 
 lemma inner_eq_norm_mul_iff {v x : E}:
   ⟪v, x⟫ = (∥x∥ : 𝕜) * ∥v∥ ↔ (∥x∥ : 𝕜) • v = (∥v∥ : 𝕜) • x :=
 begin
-  transitivity ∥(∥x∥ : 𝕜) • v - (∥v∥ : 𝕜) • x∥ ^ 2 = 0,
-  { rw norm_sub_crossmul' x v,
+  transitivity ∥(∥x∥ : 𝕜) • v - (∥v∥ : 𝕜) • x∥ * ∥(∥x∥ : 𝕜) • v - (∥v∥ : 𝕜) • x∥ = 0,
+  { rw norm_sub_crossmul x v,
     split,
     { intros hxv,
       rw hxv,
@@ -123,19 +111,14 @@ begin
   { split,
     { intros h,
       apply eq_of_norm_sub_eq_zero,
-      apply pow_eq_zero h },
+      exact zero_eq_mul_self.mp h.symm },
     { intros h,
       simp [h] } }
 end
 
-lemma inner_eq_norm_mul_iff_of_mem_sphere {v x : E} (hv : ∥v∥ = 1) (hx : ∥x∥ = 1) :
-  ⟪v, x⟫ = 1 ↔ x = v :=
-begin
-  transitivity v = x,
-  { convert inner_eq_norm_mul_iff using 2;
-    simp [hv, hx] },
-  exact eq_comm
-end
+lemma inner_eq_norm_mul_iff_of_norm_one {v x : E} (hv : ∥v∥ = 1) (hx : ∥x∥ = 1) :
+  ⟪v, x⟫ = 1 ↔ v = x :=
+by { convert inner_eq_norm_mul_iff using 2; simp [hv, hx] }
 
 end inner_product_space
 
@@ -151,7 +134,7 @@ by simp [dist_eq_norm]
 lemma mem_sphere_zero {w : E} {r : ℝ} : w ∈ sphere (0:E) r ↔ ∥w∥ = r :=
 by simp [dist_eq_norm]
 
-@[simp] lemma norm_of_mem_unit_sphere (x : sphere (0:E) 1) : ∥(x:E)∥ = 1 :=
+@[simp] lemma norm_of_mem_sphere {r : ℝ} (x : sphere (0:E) r) : ∥(x:E)∥ = r :=
 inner_product_space.mem_sphere_zero.mp x.2
 
 lemma inner_eq_norm_mul_iff_real (v x : E) :
@@ -169,15 +152,9 @@ begin
   exact le_abs_self _,
 end
 
-lemma inner_lt_one_iff_of_mem_sphere {v x : E} (hv : ∥v∥ = 1) (hx : ∥x∥ = 1) :
-  ⟪v, x⟫_ℝ < 1 ↔ x ≠ v :=
-begin
-  transitivity v ≠ x,
-  { convert inner_ne_norm_mul_iff_real v x;
-    simp [hv, hx] },
-  exact ne_comm
-end
-
+lemma inner_lt_one_iff_of_norm_one {v x : E} (hv : ∥v∥ = 1) (hx : ∥x∥ = 1) :
+  ⟪v, x⟫_ℝ < 1 ↔ v ≠ x :=
+by { convert inner_ne_norm_mul_iff_real v x; simp [hv, hx] }
 
 end inner_product_space
 
@@ -195,8 +172,9 @@ notation 𝕜`∙`:1000 x := span 𝕜 (@singleton _ _ set.has_singleton x)
 local notation `⟪`x`, `y`⟫` := @inner 𝕜 E _ x y
 
 lemma orthogonal_projection_singleton {v : E} (hv : v ≠ 0) (w : E) :
-  (⟪v, w⟫ / ∥v∥ ^ 2) • v = orthogonal_projection (𝕜 ∙ v) w :=
+  ↑(orthogonal_projection (𝕜 ∙ v) w) = (⟪v, w⟫ / ∥v∥ ^ 2) • v :=
 begin
+  symmetry,
   apply eq_orthogonal_projection_of_mem_of_inner_eq_zero,
   { rw mem_span_singleton,
     use ⟪v, w⟫ / ∥v∥ ^ 2 },
@@ -213,7 +191,7 @@ begin
 end
 
 lemma orthogonal_projection_unit_singleton {v : E} (hv : ∥v∥ = 1) (w : E) :
-  ⟪v, w⟫ • v = orthogonal_projection (𝕜 ∙ v) w :=
+  ↑(orthogonal_projection (𝕜 ∙ v) w) = ⟪v, w⟫ • v :=
 begin
   have hv' : v ≠ 0,
   { intros h,
@@ -286,7 +264,7 @@ begin
   rw inner_product_space.mem_sphere_zero,
   have h₁ : 0 ≤ ∥w∥ ^ 2 + 4 := by nlinarith,
   suffices : ∥(4:ℝ) • w + (∥w∥ ^ 2 - 4) • v∥ = ∥w∥ ^ 2 + 4,
-  { have h₂ : ∥w∥ ^ 2 + 4 ≠ 0 := ne_of_gt (by nlinarith),
+  { have h₂ : ∥w∥ ^ 2 + 4 ≠ 0 := by nlinarith,
     simp only [norm_smul, real.norm_eq_abs, abs_inv, this, abs_of_nonneg h₁,
       stereo_inv_fun_aux_apply],
     field_simp },
@@ -307,17 +285,20 @@ def stereo_inv_fun (hv : ∥v∥ = 1) (w : (ℝ ∙ v)†) : sphere (0:E) 1 :=
   (stereo_inv_fun hv w : E) = (∥w∥ ^ 2 + 4)⁻¹ • ((4:ℝ) • w + (∥w∥ ^ 2 - 4) • v) :=
 rfl
 
+example (a b : E) (h : ⟪a, b⟫_ℝ = 0) : ⟪b, a⟫_ℝ = 0 := inner_eq_zero_sym.mp h
+
 lemma stereo_inv_fun_ne_north_pole (hv : ∥v∥ = 1) (w : (ℝ ∙ v)†) :
   stereo_inv_fun hv w ≠ (⟨v, by simp [hv]⟩ : sphere (0:E) 1) :=
 begin
   refine subtype.ne_of_val_ne _,
-  rw ← inner_lt_one_iff_of_mem_sphere hv,
+  rw ← inner_lt_one_iff_of_norm_one _ hv,
   { have hw : ⟪v, w⟫_ℝ = 0 := prod_zero_right v w.2,
     have hw' : (∥(w:E)∥ ^ 2 + 4)⁻¹ * (∥(w:E)∥ ^ 2 - 4) < 1,
     { refine (inv_mul_lt_iff' _).mpr _,
       { nlinarith },
       linarith },
-    simpa [inner_add_right, inner_smul_right, real_inner_self_eq_norm_square, hw, hv] using hw' },
+    simpa [real_inner_comm, inner_add_right, inner_smul_right, real_inner_self_eq_norm_square, hw,
+      hv] using hw' },
   { simpa using stereo_inv_fun_aux_mem hv w.2 }
 end
 
@@ -331,7 +312,6 @@ begin
   have h₁ : continuous (λ w : E, (∥w∥ ^ 2 + 4)⁻¹),
   { refine (h₀.add continuous_const).inv' _,
     intros w,
-    refine ne_of_gt _,
     nlinarith },
   have h₂ : continuous (λ w, (4:ℝ) • w + (∥w∥ ^ 2 - 4) • v),
   { refine (continuous_const.smul continuous_id).add _,
@@ -351,16 +331,17 @@ begin
   set y := orthogonal_projection ((ℝ ∙ v)†) x,
   have split : ↑x = a • v + ↑y,
   { convert (sum_proj' (ℝ ∙ v) x).symm,
-    simp [← orthogonal_projection_unit_singleton hv x, a] },
+    exact (orthogonal_projection_unit_singleton hv x).symm },
   have hvy : ⟪v, y⟫_ℝ = 0 := prod_zero_right v y.2,
   have pythag : 1 = a ^ 2 + ∥(y:E)∥ ^ 2,
   { have hvy' : ⟪a • v, y⟫_ℝ = 0 := by simp [inner_smul_left, hvy],
-    convert norm_add_square_eq_norm_square_add_norm_square_of_inner_eq_zero' _ _ hvy' using 2,
+    convert norm_add_square_eq_norm_square_add_norm_square_of_inner_eq_zero _ _ hvy' using 2,
     { simp [← split] },
-    { simp [norm_smul, hv, real.norm_eq_abs, abs_sq_eq] } },
+    { simp [norm_smul, hv, real.norm_eq_abs, ← pow_two, abs_sq_eq] },
+    { exact pow_two _ } },
   -- two facts which will be helpful for clearing denominators in the main calculation
   have ha : 1 - a ≠ 0,
-  { have : a < 1 := (inner_lt_one_iff_of_mem_sphere hv (by simp)).mpr hx,
+  { have : a < 1 := (inner_lt_one_iff_of_norm_one hv (by simp)).mpr hx.symm,
     linarith },
   have : 2 ^ 2 * ∥(y:E)∥ ^ 2 + 4 * (1 - a) ^ 2 ≠ 0,
   { refine ne_of_gt _,
@@ -376,7 +357,7 @@ begin
     transitivity (1 - a) ^ 2 * (a * (2 ^ 2 * ∥(y:E)∥ ^ 2 + 4 * (1 - a) ^ 2)),
     { congr,
       nlinarith },
-    nlinarith },
+    ring },
   -- deduce the result
   convert congr_arg2 has_add.add (congr_arg (λ t, t • (y:E)) h₁) (congr_arg (λ t, t • v) h₂) using 1,
   { simp [inner_add_right, inner_smul_right, hvy, real_inner_self_eq_norm_square, hv, mul_smul,
@@ -384,9 +365,8 @@ begin
   { simp [split, add_comm] }
 end
 
-
 lemma stereo_right_inv (hv : ∥v∥ = 1) (w : (ℝ ∙ v)†) :
-  (stereo_to_fun v ∘ coe) (stereo_inv_fun hv w) = w :=
+  stereo_to_fun v (stereo_inv_fun hv w) = w :=
 begin
   have : 2 / (1 - (∥(w:E)∥ ^ 2 + 4)⁻¹ * (∥(w:E)∥ ^ 2 - 4)) * (∥(w:E)∥ ^ 2 + 4)⁻¹ * 4 = 1,
   { have : ∥(w:E)∥ ^ 2 + 4 ≠ 0 := by nlinarith,
@@ -394,9 +374,8 @@ begin
     ring },
   convert congr_arg (λ c, c • w) this,
   { have h₁ : orthogonal_projection ((ℝ ∙ v)†) v = 0 := proj_orthogonal_singleton v,
-    have h₂ : orthogonal_projection ((ℝ ∙ v)†) w = w,
-    { ext,
-      exact orthogonal_projection_mem_subspace_eq_self w.2 },
+    have h₂ : orthogonal_projection ((ℝ ∙ v)†) w = w :=
+      orthogonal_projection_mem_subspace_eq_self' w,
     have h₃ : inner_left v w = (0:ℝ) := prod_zero_right v w.2,
     have h₄ : inner_left v v = (1:ℝ) := by simp [real_inner_self_eq_norm_square, hv],
     simp [h₁, h₂, h₃, h₄, continuous_linear_map.map_add, continuous_linear_map.map_smul,
@@ -418,5 +397,5 @@ def stereographic (hv : ∥v∥ = 1) : local_homeomorph (sphere (0:E) 1) ((ℝ �
   open_source := is_open_compl_singleton,
   open_target := is_open_univ,
   continuous_to_fun := continuous_on_stereo_to_fun.comp continuous_subtype_coe.continuous_on
-    (λ w h, h ∘ subtype.ext ∘ (inner_eq_norm_mul_iff_of_mem_sphere hv (by simp)).mp),
-  continuous_inv_fun :=  (continuous_stereo_inv_fun hv).continuous_on }
+    (λ w h, h ∘ subtype.ext ∘ eq.symm ∘ (inner_eq_norm_mul_iff_of_norm_one hv (by simp)).mp),
+  continuous_inv_fun := (continuous_stereo_inv_fun hv).continuous_on }
