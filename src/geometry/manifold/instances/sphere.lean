@@ -108,8 +108,7 @@ begin
 end
 
 lemma norm_sub_crossmul (v x : E) :
-  ∥(∥v∥:𝕜) • x - (∥x∥:𝕜) • v∥ * ∥(∥v∥:𝕜) • x - (∥x∥:𝕜) • v∥
-  = 2 * ∥x∥ * ∥v∥ * (∥x∥ * ∥v∥ - re ⟪x, v⟫) :=
+  ∥(∥v∥:𝕜) • x - (∥x∥:𝕜) • v∥ * ∥(∥v∥:𝕜) • x - (∥x∥:𝕜) • v∥ = 2 * ∥x∥ * ∥v∥ * (∥x∥ * ∥v∥ - re ⟪x, v⟫) :=
 begin
   rw norm_sub_mul_self,
   simp [inner_smul_left, inner_smul_right, norm_smul, is_R_or_C.norm_eq_abs],
@@ -117,10 +116,8 @@ begin
 end
 
 lemma norm_sub_crossmul' (v x : E) :
-  ∥(∥v∥:𝕜) • x - (∥x∥:𝕜) • v∥ ^ 2
-  = 2 * ∥x∥ * ∥v∥ * (∥x∥ * ∥v∥ - re (@inner 𝕜 _ _ x v)) :=
+  ∥(∥v∥:𝕜) • x - (∥x∥:𝕜) • v∥ ^ 2 = 2 * ∥x∥ * ∥v∥ * (∥x∥ * ∥v∥ - re ⟪x, v⟫) :=
 by { convert norm_sub_crossmul v x, exact pow_two _ }
-
 
 lemma inner_eq_norm_mul_iff {v x : E}:
   ⟪v, x⟫ = (∥x∥ : 𝕜) * ∥v∥ ↔ (∥x∥ : 𝕜) • v = (∥v∥ : 𝕜) • x :=
@@ -202,43 +199,6 @@ end
 
 
 end inner_product_space
-
-
-section
-/-! Lemmas for `algebra.ordered_field` and similar. -/
-
-variables {α : Type*} [linear_ordered_field α]
-
-/- this lemma would work for `ordered_integral_domain`, if that typeclass existed -/
-@[simp] lemma eq_of_pow_two_eq_pow_two {a b : α} (ha : 0 ≤ a) (hb : 0 ≤ b) : a ^ 2 = b ^ 2 ↔ a = b :=
-begin
-  split,
-  { intros h,
-    refine (eq_or_eq_neg_of_pow_two_eq_pow_two _ _ h).elim id _,
-    intros h',
-    linarith },
-  { rintros rfl,
-    simp },
-end
-
-lemma foo (a : α) {b : α} (hb : 0 < b) : (a ^ 2 + b)⁻¹ * (a ^ 2 - b) < 1 :=
-begin
-  refine (inv_mul_lt_iff' _).mpr _,
-  { nlinarith },
-  linarith
-end
-
-@[simp] lemma abs_sq_eq (a : ℝ) : (abs a) ^ 2 = a ^ 2 :=
-begin
-  by_cases h : 0 ≤ a,
-  { simp [abs_of_nonneg h] },
-  { simp [abs_of_neg (not_le.mp h)] }
-end
-
-
-
-end
-
 
 namespace inner_product_space
 /-! Another batch of lemmas for `analysis.normed_space.inner_product`, these ones specific to
@@ -370,11 +330,14 @@ lemma stereo_inv_fun_ne_north_pole (hv : ∥v∥ = 1) (w : (ℝ ∙ v)†) :
   stereo_inv_fun hv w ≠ (⟨v, by simp [hv]⟩ : sphere (0:E) 1) :=
 begin
   refine subtype.ne_of_val_ne _,
-  refine (inner_lt_one_iff_of_mem_sphere hv _).mp _,
-  { simpa using stereo_inv_fun_aux_mem hv w.2 },
-  convert foo (∥(w : E)∥) (by norm_num : (0:ℝ) < 4),
-  have hw : ⟪v, w⟫_ℝ = 0 := prod_zero_right v w.2,
-  simp [inner_add_right, inner_smul_right, real_inner_self_eq_norm_square, hw, hv]
+  rw ← inner_lt_one_iff_of_mem_sphere hv,
+  { have hw : ⟪v, w⟫_ℝ = 0 := prod_zero_right v w.2,
+    have hw' : (∥(w:E)∥ ^ 2 + 4)⁻¹ * (∥(w:E)∥ ^ 2 - 4) < 1,
+    { refine (inv_mul_lt_iff' _).mpr _,
+      { nlinarith },
+      linarith },
+    simpa [inner_add_right, inner_smul_right, real_inner_self_eq_norm_square, hw, hv] using hw' },
+  { simpa using stereo_inv_fun_aux_mem hv w.2 }
 end
 
 lemma continuous_stereo_inv_fun (hv : ∥v∥ = 1) :
