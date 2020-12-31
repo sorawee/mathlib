@@ -1564,8 +1564,9 @@ in setting up the bundled version and should not be used once that is
 defined. -/
 lemma eq_orthogonal_projection_fn_of_mem_of_inner_eq_zero {K : submodule 𝕜 E} [complete_space K]
   {u v : E} (hvm : v ∈ K) (hvo : ∀ w ∈ K, ⟪u - v, w⟫ = 0) :
-  v = orthogonal_projection_fn K u :=
+  orthogonal_projection_fn K u = v :=
 begin
+  symmetry,
   rw [←sub_eq_zero, ←inner_self_eq_zero],
   have hvs : v - orthogonal_projection_fn K u ∈ K :=
     submodule.sub_mem K hvm (orthogonal_projection_fn_mem u),
@@ -1636,7 +1637,8 @@ orthogonal_projection_fn_inner_eq_zero v
 orthogonality property. -/
 lemma eq_orthogonal_projection_of_mem_of_inner_eq_zero {K : submodule 𝕜 E} [complete_space K]
   {u v : E} (hvm : v ∈ K) (hvo : ∀ w ∈ K, ⟪u - v, w⟫ = 0) :
-  v = orthogonal_projection K u :=
+  ↑(orthogonal_projection K u) = v :=
+eq_orthogonal_projection_fn_of_mem_of_inner_eq_zero hvm hvo
 
 /-- The orthogonal projections onto equal subspaces are coerced back to the same point in `E`. -/
 lemma eq_orthogonal_projection_of_eq_submodule {K K' : submodule 𝕜 E} [complete_space K]
@@ -1649,16 +1651,9 @@ begin
 end
 
 /-- The orthogonal projection sends elements of `K` to themselves. -/
-lemma orthogonal_projection_mem_subspace_eq_self {K : submodule 𝕜 E} [complete_space K]
-  {v : E} (hv : v ∈ K) :
-  ↑(orthogonal_projection K v) = v :=
-begin
-  have h_mem : v - orthogonal_projection K v ∈ K,
-  { exact submodule.sub_mem K hv (orthogonal_projection K v).2 },
-  symmetry,
-  rw [← sub_eq_zero, ← inner_self_eq_zero],
-  exact orthogonal_projection_inner_eq_zero v _ h_mem
-end
+lemma orthogonal_projection_mem_subspace_eq_self {K : submodule 𝕜 E} [complete_space K] (v : K) :
+  orthogonal_projection K v = v :=
+by { ext, apply eq_orthogonal_projection_of_mem_of_inner_eq_zero; simp }
 
 /-- The orthogonal projection has norm `≤ 1`. -/
 lemma orthogonal_projection_norm_le (K : submodule 𝕜 E) [complete_space K] :

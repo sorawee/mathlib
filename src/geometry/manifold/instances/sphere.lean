@@ -27,56 +27,44 @@ variables {E : Type*} [inner_product_space 𝕜 E]
 
 open is_R_or_C
 
-notation K`†`:1000 := submodule.orthogonal K
-
 local notation `⟪`x`, `y`⟫` := @inner 𝕜 E _ x y
 
-/-- The orthogonal projection is the unique point in `K` with the orthogonality property, variant
-characterization in terms of the orthogonal complement. -/
-lemma eq_orthogonal_projection_of_mem_of_inner_eq_zero' {K : submodule 𝕜 E} [complete_space K]
-  {u v : E} (hv : v ∈ K) (hvo : u - v ∈ K†) :
-  v = orthogonal_projection K u :=
-begin
-  apply eq_orthogonal_projection_fn_of_mem_of_inner_eq_zero hv,
-  intros w hw,
-  rw inner_eq_zero_sym,
-  exact hvo w hw
-end
+/-- A point in `K` with the orthogonality property (here characterized in terms of `Kᗮ`) must be the
+orthogonal projection. -/
+lemma eq_orthogonal_projection_of_mem_orthogonal {K : submodule 𝕜 E} [complete_space K]
+  {u v : E} (hv : v ∈ K) (hvo : u - v ∈ Kᗮ) :
+  ↑(orthogonal_projection K u) = v :=
+(eq_orthogonal_projection_fn_of_mem_of_inner_eq_zero hv (λ w, inner_eq_zero_sym.mp ∘ (hvo w))).symm
 
-/-- The orthogonal projection onto `K` sends elements of the subtype `K` to themselves. -/
-lemma orthogonal_projection_mem_subspace_eq_self' {K : submodule 𝕜 E} [complete_space K] (v : K) :
-  orthogonal_projection K v = v :=
-by { ext, exact orthogonal_projection_mem_subspace_eq_self v.2 }
+/-- A point in `K` with the orthogonality property (here characterized in terms of `Kᗮ`) must be the
+orthogonal projection. -/
+lemma eq_orthogonal_projection_of_mem_orthogonal' {K : submodule 𝕜 E} [complete_space K]
+  {u v z : E} (hv : v ∈ K) (hz : z ∈ Kᗮ) (hu : u = v + z) :
+  ↑(orthogonal_projection K u) = v :=
+eq_orthogonal_projection_of_mem_orthogonal hv (by simpa [hu])
 
-
-lemma eq_proj_of_split (K : submodule 𝕜 E) [complete_space K]
-  {v y z : E} (hy : y ∈ K) (hz : z ∈ K†) (hv : y + z = v) :
-  y = orthogonal_projection K v :=
-begin
-  apply eq_orthogonal_projection_of_mem_of_inner_eq_zero' hy,
-  convert hz,
-  rw ← hv,
-  abel
-end
-
-lemma sum_proj' [complete_space E] (K : submodule 𝕜 E) [complete_space K] (w : E) :
-  ↑(orthogonal_projection K w) + ↑(orthogonal_projection (K†) w) = w :=
+/-- In a complete space `E`, a vector splits as the sum of its orthogonal projections onto a
+complete submodule `K` and onto the orthogonal complement of `K`.-/
+lemma eq_sum_orthogonal_projection_self_orthogonal_complement
+  [complete_space E] (K : submodule 𝕜 E) [complete_space K] (w : E) :
+  w = ↑(orthogonal_projection K w) + ↑(orthogonal_projection Kᗮ w) :=
 begin
   obtain ⟨y, hy, z, hz, hwyz⟩ := K.exists_sum_mem_mem_orthogonal w,
   convert hwyz,
-  { rw eq_proj_of_split K hy hz hwyz },
-  { suffices hy' : y ∈ K††,
-    { rw add_comm at hwyz,
-      exact (eq_proj_of_split (K†) hz hy' hwyz).symm },
+  { exact eq_orthogonal_projection_of_mem_orthogonal' hy hz hwyz },
+  { rw add_comm at hwyz,
+    refine eq_orthogonal_projection_of_mem_orthogonal' hz _ hwyz,
     simp [hy] }
 end
 
-
-lemma sum_proj [complete_space E] (K : submodule 𝕜 E) [complete_space K] :
-  K.subtype_continuous.comp (orthogonal_projection K)
-  + K.orthogonal.subtype_continuous.comp (orthogonal_projection (K†))
-  = continuous_linear_map.id 𝕜 E :=
-by { ext w, exact sum_proj' K w }
+/-- In a complete space `E`, the projection maps onto a complete subspace `K` and its orthogonal
+complement sum to the identity. -/
+lemma id_eq_sum_orthogonal_projection_self_orthogonal_complement
+  [complete_space E] (K : submodule 𝕜 E) [complete_space K] :
+  continuous_linear_map.id 𝕜 E
+  = K.subtype_continuous.comp (orthogonal_projection K)
+  + Kᗮ.subtype_continuous.comp (orthogonal_projection Kᗮ) :=
+by { ext w, exact eq_sum_orthogonal_projection_self_orthogonal_complement K w }
 
 include 𝕜
 
@@ -120,14 +108,6 @@ lemma inner_eq_norm_mul_iff_of_norm_one {v x : E} (hv : ∥v∥ = 1) (hx : ∥x�
   ⟪v, x⟫ = 1 ↔ v = x :=
 by { convert inner_eq_norm_mul_iff using 2; simp [hv, hx] }
 
-end inner_product_space
-
-
-namespace inner_product_space
-/-! Reals-specific lemmas for `analysis.normed_space.inner_product`. -/
-
-variables {E : Type*} [inner_product_space ℝ E]
-
 lemma mem_sphere (v w : E) (r : ℝ) : w ∈ sphere v r ↔ ∥w - v∥ = r :=
 by simp [dist_eq_norm]
 
@@ -136,6 +116,15 @@ by simp [dist_eq_norm]
 
 @[simp] lemma norm_of_mem_sphere {r : ℝ} (x : sphere (0:E) r) : ∥(x:E)∥ = r :=
 inner_product_space.mem_sphere_zero.mp x.2
+
+
+end inner_product_space
+
+
+namespace inner_product_space
+/-! Reals-specific lemmas for `analysis.normed_space.inner_product`. -/
+
+variables {E : Type*} [inner_product_space ℝ E]
 
 lemma inner_eq_norm_mul_iff_real (v x : E) :
   ⟪v, x⟫_ℝ = ∥x∥ * ∥v∥ ↔ ∥x∥ • v = ∥v∥ • x :=
@@ -203,17 +192,17 @@ begin
   simp
 end
 
-lemma prod_zero_left (v : E) {w : E} (hw : w ∈ (𝕜 ∙ v)†) : ⟪w, v⟫ = 0 :=
+lemma prod_zero_left (v : E) {w : E} (hw : w ∈ (𝕜 ∙ v)ᗮ) : ⟪w, v⟫ = 0 :=
 inner_left_of_mem_orthogonal (mem_span_singleton_self v) hw
 
-lemma prod_zero_right (v : E) {w : E} (hw : w ∈ (𝕜 ∙ v)†) : ⟪v, w⟫ = 0 :=
+lemma prod_zero_right (v : E) {w : E} (hw : w ∈ (𝕜 ∙ v)ᗮ) : ⟪v, w⟫ = 0 :=
 inner_right_of_mem_orthogonal (mem_span_singleton_self v) hw
 
 lemma proj_orthogonal_singleton [complete_space E] (v : E) :
-  orthogonal_projection ((𝕜 ∙ v)†) v = 0 :=
+  orthogonal_projection ((𝕜 ∙ v)ᗮ) v = 0 :=
 begin
   ext,
-  refine (eq_orthogonal_projection_of_mem_of_inner_eq_zero' _ _).symm;
+  refine eq_orthogonal_projection_of_mem_orthogonal _ _;
   { simp [mem_span_singleton_self] }
 end
 
@@ -229,21 +218,21 @@ open inner_product_space submodule
 the orthogonal complement of an element `v` of `E`. It is smooth away from the affine hyperplane
 through `v` parallel to the orthogonal complement.  It restricts on the sphere to the stereographic
 projection. -/
-def stereo_to_fun [complete_space E] (x : E) : (ℝ ∙ v)† :=
-(2 / ((1:ℝ) - inner_left v x)) • orthogonal_projection ((ℝ ∙ v)†) x
+def stereo_to_fun [complete_space E] (x : E) : (ℝ ∙ v)ᗮ :=
+(2 / ((1:ℝ) - inner_right v x)) • orthogonal_projection ((ℝ ∙ v)ᗮ) x
 
 variables {v}
 
 @[simp] lemma stereo_to_fun_apply [complete_space E] (x : E) :
-  stereo_to_fun v x = (2 / ((1:ℝ) - inner_left v x)) • orthogonal_projection ((ℝ ∙ v)†) x :=
+  stereo_to_fun v x = (2 / ((1:ℝ) - inner_right v x)) • orthogonal_projection ((ℝ ∙ v)ᗮ) x :=
 rfl
 
 lemma continuous_on_stereo_to_fun [complete_space E] :
-  continuous_on (stereo_to_fun v) {x : E | inner_left v x ≠ (1:ℝ)} :=
+  continuous_on (stereo_to_fun v) {x : E | inner_right v x ≠ (1:ℝ)} :=
 begin
-  refine continuous_on.smul _ (orthogonal_projection ((ℝ ∙ v)†)).continuous.continuous_on,
+  refine continuous_on.smul _ (orthogonal_projection ((ℝ ∙ v)ᗮ)).continuous.continuous_on,
   refine continuous_const.continuous_on.div _ _,
-  { exact (continuous_const.sub (inner_left v).continuous).continuous_on },
+  { exact (continuous_const.sub (inner_right v).continuous).continuous_on },
   { intros x h h',
     exact h (sub_eq_zero.mp h').symm }
 end
@@ -258,7 +247,7 @@ variables {v}
   stereo_inv_fun_aux v w = (∥w∥ ^ 2 + 4)⁻¹ • ((4:ℝ) • w + (∥w∥ ^ 2 - 4) • v) :=
 rfl
 
-lemma stereo_inv_fun_aux_mem (hv : ∥v∥ = 1) {w : E} (hw : w ∈ (ℝ ∙ v)†) :
+lemma stereo_inv_fun_aux_mem (hv : ∥v∥ = 1) {w : E} (hw : w ∈ (ℝ ∙ v)ᗮ) :
   stereo_inv_fun_aux v w ∈ (sphere (0:E) 1) :=
 begin
   rw inner_product_space.mem_sphere_zero,
@@ -278,16 +267,16 @@ end
 
 /-- Stereographic projection, reverse direction.  This is a map from the orthogonal complement of a
 unit vector `v` in an inner product space `E` to the unit sphere in `E`. -/
-def stereo_inv_fun (hv : ∥v∥ = 1) (w : (ℝ ∙ v)†) : sphere (0:E) 1 :=
+def stereo_inv_fun (hv : ∥v∥ = 1) (w : (ℝ ∙ v)ᗮ) : sphere (0:E) 1 :=
 ⟨stereo_inv_fun_aux v (w:E), stereo_inv_fun_aux_mem hv w.2⟩
 
-@[simp] lemma stereo_inv_fun_apply (hv : ∥v∥ = 1) (w : (ℝ ∙ v)†) :
+@[simp] lemma stereo_inv_fun_apply (hv : ∥v∥ = 1) (w : (ℝ ∙ v)ᗮ) :
   (stereo_inv_fun hv w : E) = (∥w∥ ^ 2 + 4)⁻¹ • ((4:ℝ) • w + (∥w∥ ^ 2 - 4) • v) :=
 rfl
 
 example (a b : E) (h : ⟪a, b⟫_ℝ = 0) : ⟪b, a⟫_ℝ = 0 := inner_eq_zero_sym.mp h
 
-lemma stereo_inv_fun_ne_north_pole (hv : ∥v∥ = 1) (w : (ℝ ∙ v)†) :
+lemma stereo_inv_fun_ne_north_pole (hv : ∥v∥ = 1) (w : (ℝ ∙ v)ᗮ) :
   stereo_inv_fun hv w ≠ (⟨v, by simp [hv]⟩ : sphere (0:E) 1) :=
 begin
   refine subtype.ne_of_val_ne _,
@@ -327,10 +316,10 @@ begin
   ext,
   simp only [stereo_to_fun_apply, stereo_inv_fun_apply, smul_add],
   -- name two frequently-occuring quantities and write down their basic properties
-  set a : ℝ := inner_left v x,
-  set y := orthogonal_projection ((ℝ ∙ v)†) x,
+  set a : ℝ := inner_right v x,
+  set y := orthogonal_projection ((ℝ ∙ v)ᗮ) x,
   have split : ↑x = a • v + ↑y,
-  { convert (sum_proj' (ℝ ∙ v) x).symm,
+  { convert eq_sum_orthogonal_projection_self_orthogonal_complement (ℝ ∙ v) x,
     exact (orthogonal_projection_unit_singleton hv x).symm },
   have hvy : ⟪v, y⟫_ℝ = 0 := prod_zero_right v y.2,
   have pythag : 1 = a ^ 2 + ∥(y:E)∥ ^ 2,
@@ -365,7 +354,7 @@ begin
   { simp [split, add_comm] }
 end
 
-lemma stereo_right_inv (hv : ∥v∥ = 1) (w : (ℝ ∙ v)†) :
+lemma stereo_right_inv (hv : ∥v∥ = 1) (w : (ℝ ∙ v)ᗮ) :
   stereo_to_fun v (stereo_inv_fun hv w) = w :=
 begin
   have : 2 / (1 - (∥(w:E)∥ ^ 2 + 4)⁻¹ * (∥(w:E)∥ ^ 2 - 4)) * (∥(w:E)∥ ^ 2 + 4)⁻¹ * 4 = 1,
@@ -373,11 +362,11 @@ begin
     field_simp,
     ring },
   convert congr_arg (λ c, c • w) this,
-  { have h₁ : orthogonal_projection ((ℝ ∙ v)†) v = 0 := proj_orthogonal_singleton v,
-    have h₂ : orthogonal_projection ((ℝ ∙ v)†) w = w :=
-      orthogonal_projection_mem_subspace_eq_self' w,
-    have h₃ : inner_left v w = (0:ℝ) := prod_zero_right v w.2,
-    have h₄ : inner_left v v = (1:ℝ) := by simp [real_inner_self_eq_norm_square, hv],
+  { have h₁ : orthogonal_projection ((ℝ ∙ v)ᗮ) v = 0 := proj_orthogonal_singleton v,
+    have h₂ : orthogonal_projection ((ℝ ∙ v)ᗮ) w = w :=
+      orthogonal_projection_mem_subspace_eq_self w,
+    have h₃ : inner_right v w = (0:ℝ) := prod_zero_right v w.2,
+    have h₄ : inner_right v v = (1:ℝ) := by simp [real_inner_self_eq_norm_square, hv],
     simp [h₁, h₂, h₃, h₄, continuous_linear_map.map_add, continuous_linear_map.map_smul,
       mul_smul] },
   { simp }
@@ -385,7 +374,7 @@ end
 
 /-- Stereographic projection from the unit sphere in `E`, centred at a unit vector `v` in `E`; this
 is the version as a local homeomorphism. -/
-def stereographic (hv : ∥v∥ = 1) : local_homeomorph (sphere (0:E) 1) ((ℝ ∙ v)†) :=
+def stereographic (hv : ∥v∥ = 1) : local_homeomorph (sphere (0:E) 1) ((ℝ ∙ v)ᗮ) :=
 { to_fun := (stereo_to_fun v) ∘ coe,
   inv_fun := stereo_inv_fun hv,
   source := {⟨v, by simp [hv]⟩}ᶜ,
