@@ -147,21 +147,26 @@ instance {β : Type*} [complete_lattice β] : complete_lattice (α →ₘ β) :=
 
 end preorder_hom
 
-namespace rel_embedding
+section rel_hom
 
-variables {α β : Type*} [partial_order α] [partial_order β]
-variables (f : ((<) : α → α → Prop) ↪r ((<) : β → β → Prop))
+variables {α β : Type*} [partial_order α] [preorder β]
 
-/-- A map between partial orders that is strictly monotonic is weakly monotonic. -/
+namespace rel_hom
+
+variables (f : ((<) : α → α → Prop) →r ((<) : β → β → Prop))
+
+/-- A bundled expression of the fact that a map between partial orders that is strictly monotonic
+is weakly monotonic. -/
 def to_preorder_hom : α →ₘ β :=
 { to_fun    := f,
-  monotone' := λ a b h, by
-  { by_cases hab : a = b,
-    { rw hab, },
-    { rw [ne.le_iff_lt hab, f.map_rel_iff] at h, exact le_of_lt h, }, }, }
+  monotone' := f.monotone, }
 
 @[simp] lemma to_preorder_hom_coe_fn : ⇑f.to_preorder_hom = f := rfl
 
-lemma to_preorder_hom_injective : function.injective f.to_preorder_hom := λ _ _ h, f.injective h
+end rel_hom
 
-end rel_embedding
+lemma rel_embedding.to_preorder_hom_injective (f : ((<) : α → α → Prop) ↪r ((<) : β → β → Prop)) :
+  function.injective (f : ((<) : α → α → Prop) →r ((<) : β → β → Prop)).to_preorder_hom :=
+λ _ _ h, f.injective h
+
+end rel_hom
