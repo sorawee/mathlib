@@ -79,14 +79,6 @@ end
 protected theorem well_founded : ∀ (f : r →r s) (h : well_founded s), well_founded r
 | f ⟨H⟩ := ⟨λ a, f.acc _ (H _)⟩
 
-lemma monotone [partial_order α] [preorder β]
-  (f : ((<) : α → α → Prop) →r ((<) : β → β → Prop)) : monotone f :=
-begin
-  intros a b h, by_cases hab : a = b,
-  { rw hab, },
-  { rw ne.le_iff_lt hab at h, exact le_of_lt (f.map_rel h), },
-end
-
 end rel_hom
 
 /-- An increasing function is injective -/

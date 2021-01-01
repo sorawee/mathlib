@@ -159,7 +159,7 @@ variables (f : ((<) : α → α → Prop) →r ((<) : β → β → Prop))
 is weakly monotonic. -/
 def to_preorder_hom : α →ₘ β :=
 { to_fun    := f,
-  monotone' := f.monotone, }
+  monotone' := strict_mono.monotone (λ x y, f.map_rel), }
 
 @[simp] lemma to_preorder_hom_coe_fn : ⇑f.to_preorder_hom = f := rfl
 
