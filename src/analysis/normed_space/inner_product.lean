@@ -1566,14 +1566,13 @@ lemma eq_orthogonal_projection_fn_of_mem_of_inner_eq_zero {K : submodule 𝕜 E}
   {u v : E} (hvm : v ∈ K) (hvo : ∀ w ∈ K, ⟪u - v, w⟫ = 0) :
   orthogonal_projection_fn K u = v :=
 begin
-  symmetry,
   rw [←sub_eq_zero, ←inner_self_eq_zero],
-  have hvs : v - orthogonal_projection_fn K u ∈ K :=
-    submodule.sub_mem K hvm (orthogonal_projection_fn_mem u),
-  have huo : ⟪u - orthogonal_projection_fn K u, v - orthogonal_projection_fn K u⟫ = 0 :=
+  have hvs : orthogonal_projection_fn K u - v ∈ K :=
+    submodule.sub_mem K (orthogonal_projection_fn_mem u) hvm,
+  have huo : ⟪u - orthogonal_projection_fn K u, orthogonal_projection_fn K u - v⟫ = 0 :=
     orthogonal_projection_fn_inner_eq_zero u _ hvs,
-  have huv : ⟪u - v, v - orthogonal_projection_fn K u⟫ = 0 := hvo _ hvs,
-  have houv : ⟪(u - orthogonal_projection_fn K u) - (u - v), v - orthogonal_projection_fn K u⟫ = 0,
+  have huv : ⟪u - v, orthogonal_projection_fn K u - v⟫ = 0 := hvo _ hvs,
+  have houv : ⟪(u - v) - (u - orthogonal_projection_fn K u), orthogonal_projection_fn K u - v⟫ = 0,
   { rw [inner_sub_left, huo, huv, sub_zero] },
   rwa sub_sub_sub_cancel_left at houv
 end
