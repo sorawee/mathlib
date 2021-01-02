@@ -26,29 +26,6 @@ variables {V : Type*} [add_comm_group V] [module K V]
 
 open submodule finite_dimensional
 
-lemma eq_zero_of_smul_two_eq_zero [char_zero K] {v : V} (hv : 2 • v = 0) : v = 0 :=
-begin
-  convert congr_arg (λ v, (2:K)⁻¹ • v) hv,
-  { convert mul_smul (2:K)⁻¹ (2:K) v,
-    { convert (one_smul K v).symm,
-      apply inv_mul_cancel,
-      exact two_ne_zero' },
-    { transitivity ((1:K) + 1) • v,
-      { rw [add_smul, one_smul K v], abel },
-      { refl } } },
-  { simp }
-end
-
-lemma eq_zero_of_eq_neg [char_zero K] {v : V} (hv : v = - v) : v = 0 :=
-begin
-  refine eq_zero_of_smul_two_eq_zero K _,
-  convert add_eq_zero_iff_eq_neg.mpr hv,
-  abel
-end
-
-lemma ne_neg_of_ne_zero [char_zero K] {v : V} (hv : v ≠ 0) : v ≠ -v :=
-λ h, hv (eq_zero_of_eq_neg K h)
-
 variables {K}
 
 lemma findim_one {v : V} (hv : v ≠ 0) : findim K (K ∙ v) = 1 :=
@@ -62,27 +39,15 @@ end
 
 end linear_algebra_facts
 
-namespace continuous_linear_equiv
-
-open finite_dimensional
-
-variables {K : Type*} {V : Type*} {V₂ : Type*} [normed_field K] [normed_group V] [normed_group V₂]
-variables [normed_space K V] [normed_space K V₂] [finite_dimensional K V] [finite_dimensional K V₂]
-
-def of_findim_eq (cond : findim K V = findim K V₂) : V ≃L[K] V₂ :=
-(linear_equiv.of_findim_eq cond).to_continuous_linear_equiv
-
-end continuous_linear_equiv
-
 namespace normed_space
 
-variables {𝕜 : Type*}
+/-! Some facts about spheres in normed spaces, for `normed_space.basic`. -/
+
 variables {E : Type*} [normed_group E]
 open is_R_or_C metric
 
-section general
 
-variables [normed_field 𝕜] [normed_space 𝕜 E]
+-- variables [normed_field 𝕜] [normed_space 𝕜 E]
 
 
 lemma mem_sphere (v w : E) (r : ℝ) : w ∈ sphere v r ↔ ∥w - v∥ = r :=
@@ -107,9 +72,16 @@ instance {r : ℝ} : has_neg (sphere (0:E) r) :=
   (((-v) : sphere _ _) : E) = - (v:E) :=
 rfl
 
-variables (𝕜)
-lemma ne_neg_of_mem_sphere [char_zero 𝕜] (x : sphere (0:E) 1) : x ≠ - x :=
-subtype.ne_of_val_ne (ne_neg_of_ne_zero 𝕜 (nonzero_of_mem_sphere (by norm_num) x))
+variables (𝕜 : Type*)
+
+section general
+variables [normed_field 𝕜] [normed_space 𝕜 E]
+
+lemma ne_neg_of_mem_sphere [char_zero 𝕜] {r : ℝ} (hr : 0 < r) (x : sphere (0:E) r) : x ≠ - x :=
+λ h, nonzero_of_mem_sphere hr x (eq_zero_of_eq_neg 𝕜 (by { conv_lhs {rw h}, simp }))
+
+lemma ne_neg_of_mem_unit_sphere [char_zero 𝕜] (x : sphere (0:E) 1) : x ≠ - x :=
+ne_neg_of_mem_sphere 𝕜 (by norm_num) x
 
 end general
 
@@ -418,6 +390,7 @@ lemma stereo_right_inv (hv : ∥v∥ = 1) (w : (ℝ ∙ v)ᗮ) :
 begin
   have : 2 / (1 - (∥(w:E)∥ ^ 2 + 4)⁻¹ * (∥(w:E)∥ ^ 2 - 4)) * (∥(w:E)∥ ^ 2 + 4)⁻¹ * 4 = 1,
   { have : ∥(w:E)∥ ^ 2 + 4 ≠ 0 := by nlinarith,
+    have : (4:ℝ) + 4 ≠ 0 := by nlinarith,
     field_simp,
     ring },
   convert congr_arg (λ c, c • w) this,
@@ -457,7 +430,8 @@ rfl
 
 variables [finite_dimensional ℝ E]
 
-def identify_hyperplane {v : E} (hv : v ≠ 0) :
+/-- The orthogonal complement of the span of a singleton is linearly equivalent to ... -/
+def identify_hyperplane [finite_dimensional ℝ E] {v : E} (hv : v ≠ 0) :
   (ℝ ∙ (v:E))ᗮ ≃L[ℝ] (euclidean_space ℝ (fin (findim ℝ E - 1))) :=
 continuous_linear_equiv.of_findim_eq
 begin
@@ -485,7 +459,7 @@ open_locale classical
 instance : charted_space (euclidean_space ℝ (fin (findim ℝ E - 1))) (sphere (0:E) 1) :=
 { atlas            := { f | ∃ v : (sphere (0:E) 1), f = stereographic' v},
   chart_at         := λ v, stereographic' (-v),
-  mem_chart_source := λ v, by simpa using ne_neg_of_mem_sphere ℝ v,
+  mem_chart_source := λ v, by simpa using ne_neg_of_mem_unit_sphere ℝ v,
   chart_mem_atlas  := λ v, ⟨-v, rfl⟩ }
 
 
