@@ -26,8 +26,6 @@ variables {V : Type*} [add_comm_group V] [module K V]
 
 open submodule finite_dimensional
 
-notation 𝕜`∙`:1000 x := span 𝕜 (@singleton _ _ set.has_singleton x)
-
 lemma eq_zero_of_smul_two_eq_zero [char_zero K] {v : V} (hv : 2 • v = 0) : v = 0 :=
 begin
   convert congr_arg (λ v, (2:K)⁻¹ • v) hv,
@@ -407,7 +405,8 @@ begin
       nlinarith },
     ring },
   -- deduce the result
-  convert congr_arg2 has_add.add (congr_arg (λ t, t • (y:E)) h₁) (congr_arg (λ t, t • v) h₂) using 1,
+  convert congr_arg2 has_add.add (congr_arg (λ t, t • (y:E)) h₁) (congr_arg (λ t, t • v) h₂)
+    using 1,
   { simp [inner_add_right, inner_smul_right, hvy, real_inner_self_eq_norm_square, hv, mul_smul,
       mul_pow, real.norm_eq_abs, abs_sq_eq, norm_smul] },
   { simp [split, add_comm] }
