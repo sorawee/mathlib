@@ -17,7 +17,119 @@ it to put a smooth manifold structure on the sphere.
 
 noncomputable theory
 
-open metric
+section linear_algebra_facts
+
+/-! Facts for linear algebra libraries -/
+
+variables (K : Type*) [field K]
+variables {V : Type*} [add_comm_group V] [module K V]
+
+open submodule finite_dimensional
+
+notation 𝕜`∙`:1000 x := span 𝕜 (@singleton _ _ set.has_singleton x)
+
+lemma eq_zero_of_smul_two_eq_zero [char_zero K] {v : V} (hv : 2 • v = 0) : v = 0 :=
+begin
+  convert congr_arg (λ v, (2:K)⁻¹ • v) hv,
+  { convert mul_smul (2:K)⁻¹ (2:K) v,
+    { convert (one_smul K v).symm,
+      apply inv_mul_cancel,
+      exact two_ne_zero' },
+    { transitivity ((1:K) + 1) • v,
+      { rw [add_smul, one_smul K v], abel },
+      { refl } } },
+  { simp }
+end
+
+lemma eq_zero_of_eq_neg [char_zero K] {v : V} (hv : v = - v) : v = 0 :=
+begin
+  refine eq_zero_of_smul_two_eq_zero K _,
+  convert add_eq_zero_iff_eq_neg.mpr hv,
+  abel
+end
+
+lemma ne_neg_of_ne_zero [char_zero K] {v : V} (hv : v ≠ 0) : v ≠ -v :=
+λ h, hv (eq_zero_of_eq_neg K h)
+
+variables {K}
+
+lemma findim_one {v : V} (hv : v ≠ 0) : findim K (K ∙ v) = 1 :=
+begin
+  apply le_antisymm,
+  { exact findim_span_le_card ({v} : set V) },
+  { rw [nat.succ_le_iff, findim_pos_iff],
+    use [⟨v, mem_span_singleton_self v⟩, 0],
+    simp [hv] }
+end
+
+end linear_algebra_facts
+
+namespace continuous_linear_equiv
+
+open finite_dimensional
+
+variables {K : Type*} {V : Type*} {V₂ : Type*} [normed_field K] [normed_group V] [normed_group V₂]
+variables [normed_space K V] [normed_space K V₂] [finite_dimensional K V] [finite_dimensional K V₂]
+
+def of_findim_eq (cond : findim K V = findim K V₂) : V ≃L[K] V₂ :=
+sorry
+
+end continuous_linear_equiv
+
+namespace normed_space
+
+variables {𝕜 : Type*}
+variables {E : Type*} [normed_group E]
+open is_R_or_C metric
+
+section general
+
+variables [normed_field 𝕜] [normed_space 𝕜 E]
+
+
+lemma mem_sphere (v w : E) (r : ℝ) : w ∈ sphere v r ↔ ∥w - v∥ = r :=
+by simp [dist_eq_norm]
+
+lemma mem_sphere_zero {w : E} {r : ℝ} : w ∈ sphere (0:E) r ↔ ∥w∥ = r :=
+by simp [dist_eq_norm]
+
+@[simp] lemma norm_of_mem_sphere {r : ℝ} (x : sphere (0:E) r) : ∥(x:E)∥ = r :=
+mem_sphere_zero.mp x.2
+
+lemma nonzero_of_mem_sphere {r : ℝ} (hr : 0 < r) (x : sphere (0:E) r) : (x:E) ≠ 0 :=
+by rwa [← norm_pos_iff, norm_of_mem_sphere]
+
+lemma nonzero_of_mem_unit_sphere (x : sphere (0:E) 1) : (x:E) ≠ 0 :=
+by { apply nonzero_of_mem_sphere, norm_num }
+
+instance {r : ℝ} : has_neg (sphere (0:E) r) :=
+{ neg := λ w, ⟨-↑w, by simp⟩ }
+
+@[simp] lemma neg_sphere_eq_neg {r : ℝ} (v : sphere (0:E) r) :
+  (((-v) : sphere _ _) : E) = - (v:E) :=
+rfl
+
+variables (𝕜)
+lemma ne_neg_of_mem_sphere [char_zero 𝕜] (x : sphere (0:E) 1) : x ≠ - x :=
+subtype.ne_of_val_ne (ne_neg_of_ne_zero 𝕜 (nonzero_of_mem_sphere (by norm_num) x))
+
+end general
+
+variables [is_R_or_C 𝕜] [normed_space 𝕜 E]
+
+
+instance [nontrivial E] : inhabited (sphere (0:E) 1) :=
+let a := classical.some (exists_ne (0:E)) in
+⟨⟨(∥a∥⁻¹:𝕜) • a,
+  begin
+    have ha : a ≠ 0 := classical.some_spec (exists_ne (0:E)),
+    have ha' : ∥a∥ ≠ 0 := ne_of_gt (norm_pos_iff.mpr ha),
+    simp [norm_smul, inv_mul_cancel ha', norm_eq_abs, abs_of_real]
+  end ⟩⟩
+
+
+end normed_space
+
 
 namespace inner_product_space
 /-! Lemmas for `analysis.normed_space.inner_product`. -/
@@ -71,15 +183,6 @@ lemma inner_eq_norm_mul_iff_of_norm_one {v x : E} (hv : ∥v∥ = 1) (hx : ∥x�
   ⟪v, x⟫ = 1 ↔ v = x :=
 by { convert inner_eq_norm_mul_iff using 2; simp [hv, hx] }
 
-lemma mem_sphere (v w : E) (r : ℝ) : w ∈ sphere v r ↔ ∥w - v∥ = r :=
-by simp [dist_eq_norm]
-
-lemma mem_sphere_zero {w : E} {r : ℝ} : w ∈ sphere (0:E) r ↔ ∥w∥ = r :=
-by simp [dist_eq_norm]
-
-@[simp] lemma norm_of_mem_sphere {r : ℝ} (x : sphere (0:E) r) : ∥(x:E)∥ = r :=
-inner_product_space.mem_sphere_zero.mp x.2
-
 
 end inner_product_space
 
@@ -118,8 +221,6 @@ variables {𝕜 : Type*} [is_R_or_C 𝕜]
 variables {E : Type*} [inner_product_space 𝕜 E]
 
 open submodule
-
-notation 𝕜`∙`:1000 x := span 𝕜 (@singleton _ _ set.has_singleton x)
 
 local notation `⟪`x`, `y`⟫` := @inner 𝕜 E _ x y
 
@@ -162,11 +263,7 @@ inner_right_of_mem_orthogonal (mem_span_singleton_self v) hw
 
 lemma proj_orthogonal_singleton [complete_space E] (v : E) :
   orthogonal_projection ((𝕜 ∙ v)ᗮ) v = 0 :=
-begin
-  ext,
-  refine eq_orthogonal_projection_of_mem_orthogonal _ _;
-  { simp [mem_span_singleton_self] }
-end
+orthogonal_projection_mem_subspace_orthogonal_precomplement_eq_zero (mem_span_singleton_self v)
 
 end inner_product_space
 
@@ -174,7 +271,7 @@ end inner_product_space
 variables {E : Type*} [inner_product_space ℝ E]
 variables (v : E)
 
-open inner_product_space submodule
+open inner_product_space submodule metric finite_dimensional normed_space
 
 /-- Stereographic projection, forward direction. This is a map from an inner product space `E` to
 the orthogonal complement of an element `v` of `E`. It is smooth away from the affine hyperplane
@@ -212,7 +309,7 @@ rfl
 lemma stereo_inv_fun_aux_mem (hv : ∥v∥ = 1) {w : E} (hw : w ∈ (ℝ ∙ v)ᗮ) :
   stereo_inv_fun_aux v w ∈ (sphere (0:E) 1) :=
 begin
-  rw inner_product_space.mem_sphere_zero,
+  rw mem_sphere_zero,
   have h₁ : 0 ≤ ∥w∥ ^ 2 + 4 := by nlinarith,
   suffices : ∥(4:ℝ) • w + (∥w∥ ^ 2 - 4) • v∥ = ∥w∥ ^ 2 + 4,
   { have h₂ : ∥w∥ ^ 2 + 4 ≠ 0 := by nlinarith,
@@ -350,3 +447,52 @@ def stereographic (hv : ∥v∥ = 1) : local_homeomorph (sphere (0:E) 1) ((ℝ �
   continuous_to_fun := continuous_on_stereo_to_fun.comp continuous_subtype_coe.continuous_on
     (λ w h, h ∘ subtype.ext ∘ eq.symm ∘ (inner_eq_norm_mul_iff_of_norm_one hv (by simp)).mp),
   continuous_inv_fun := (continuous_stereo_inv_fun hv).continuous_on }
+
+@[simp] lemma stereographic_source (hv : ∥v∥ = 1) :
+  (stereographic hv).source = {⟨v, by simp [hv]⟩}ᶜ :=
+rfl
+
+@[simp] lemma stereographic_target (hv : ∥v∥ = 1) : (stereographic hv).target = set.univ := rfl
+
+
+variables [finite_dimensional ℝ E]
+
+def identify_hyperplane {v : E} (hv : v ≠ 0) :
+  (ℝ ∙ (v:E))ᗮ ≃L[ℝ] (euclidean_space ℝ (fin (findim ℝ E - 1))) :=
+continuous_linear_equiv.of_findim_eq
+begin
+  haveI : nontrivial E := ⟨⟨v, 0, hv⟩⟩,
+  apply submodule.findim_add_findim_orthogonal',
+  simp only [findim_one hv, findim_euclidean_space, fintype.card_fin],
+  exact (nat.add_sub_cancel' (nat.succ_le_iff.mpr findim_pos))
+end
+
+def stereographic' (v : sphere (0:E) 1) :
+  local_homeomorph (sphere (0:E) 1) (euclidean_space ℝ (fin (findim ℝ E - 1))) :=
+(stereographic (norm_of_mem_sphere v)).trans
+(identify_hyperplane (nonzero_of_mem_unit_sphere v)).to_homeomorph.to_local_homeomorph
+
+@[simp] lemma stereographic'_source (v : sphere (0:E) 1) :
+  (stereographic' v).source = {v}ᶜ :=
+by simp [stereographic']
+
+@[simp] lemma stereographic'_target (v : sphere (0:E) 1) :
+  (stereographic' v).target = set.univ :=
+by simp [stereographic']
+
+open_locale classical
+
+instance : charted_space (euclidean_space ℝ (fin (findim ℝ E - 1))) (sphere (0:E) 1) :=
+{ atlas            := { f | ∃ v : (sphere (0:E) 1), f = stereographic' v},
+  chart_at         := λ v, stereographic' (-v),
+  mem_chart_source := λ v, by simpa using ne_neg_of_mem_sphere ℝ v,
+  chart_mem_atlas  := λ v, ⟨-v, rfl⟩ }
+
+
+-- instance : charted_space (euclidean_space ℝ (fin (findim ℝ E - 1))) (sphere (0:E) 1) :=
+-- { atlas            := { stereographic' (default (sphere (0:E) 1)),
+--                         stereographic' (- default (sphere (0:E) 1)) },
+--   chart_at         := λ v, if v = default _ then stereographic' (- default (sphere (0:E) 1))
+--                                             else stereographic' (default (sphere (0:E) 1)),
+--   mem_chart_source := sorry,
+--   chart_mem_atlas  := sorry }
