@@ -1,9 +1,9 @@
 /-
-Copyright (c) 2020 Heather Macbeth. All rights reserved.
+Copyright (c) 2021 Heather Macbeth. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Heather Macbeth
 -/
-import geometry.manifold.charted_space
+import geometry.manifold.instances.real
 import analysis.normed_space.inner_product
 
 
@@ -142,7 +142,8 @@ local notation `⟪`x`, `y`⟫` := @inner 𝕜 E _ x y
 include 𝕜
 
 lemma norm_sub_crossmul (v x : E) :
-  ∥(∥v∥:𝕜) • x - (∥x∥:𝕜) • v∥ * ∥(∥v∥:𝕜) • x - (∥x∥:𝕜) • v∥ = 2 * ∥x∥ * ∥v∥ * (∥x∥ * ∥v∥ - re ⟪x, v⟫) :=
+  ∥(∥v∥:𝕜) • x - (∥x∥:𝕜) • v∥ * ∥(∥v∥:𝕜) • x - (∥x∥:𝕜) • v∥
+  = 2 * ∥x∥ * ∥v∥ * (∥x∥ * ∥v∥ - re ⟪x, v⟫) :=
 begin
   simp only [norm_sub_mul_self, inner_smul_left, inner_smul_right, norm_smul, norm_eq_abs,
     conj_of_real, abs_of_real, of_real_im, of_real_re, mul_re, abs_norm_eq_norm],
@@ -194,7 +195,7 @@ lemma inner_eq_norm_mul_iff_real (v x : E) :
   ⟪v, x⟫_ℝ = ∥x∥ * ∥v∥ ↔ ∥x∥ • v = ∥v∥ • x :=
 inner_eq_norm_mul_iff
 
-lemma inner_ne_norm_mul_iff_real (v x : E) :
+lemma inner_lt_norm_mul_iff_real (v x : E) :
   ⟪v, x⟫_ℝ < ∥x∥ * ∥v∥ ↔ ∥x∥ • v ≠ ∥v∥ • x :=
 begin
   have : _ ↔ (_ ≠ _):= not_congr (inner_eq_norm_mul_iff_real v x),
@@ -207,7 +208,7 @@ end
 
 lemma inner_lt_one_iff_of_norm_one {v x : E} (hv : ∥v∥ = 1) (hx : ∥x∥ = 1) :
   ⟪v, x⟫_ℝ < 1 ↔ v ≠ x :=
-by { convert inner_ne_norm_mul_iff_real v x; simp [hv, hx] }
+by { convert inner_lt_norm_mul_iff_real v x; simp [hv, hx] }
 
 end inner_product_space
 
@@ -486,6 +487,19 @@ instance : charted_space (euclidean_space ℝ (fin (findim ℝ E - 1))) (sphere 
   chart_at         := λ v, stereographic' (-v),
   mem_chart_source := λ v, by simpa using ne_neg_of_mem_sphere ℝ v,
   chart_mem_atlas  := λ v, ⟨-v, rfl⟩ }
+
+
+open_locale manifold
+
+instance : smooth_manifold_with_corners (𝓡 ((findim ℝ E - 1))) (sphere (0:E) 1) :=
+smooth_manifold_with_corners_of_times_cont_diff_on
+(𝓡 ((findim ℝ E - 1)))
+(sphere (0:E) 1)
+begin
+  rintros _ _ ⟨v, rfl⟩ ⟨v', rfl⟩,
+  simp [stereographic'],
+  sorry
+end
 
 
 -- instance : charted_space (euclidean_space ℝ (fin (findim ℝ E - 1))) (sphere (0:E) 1) :=
