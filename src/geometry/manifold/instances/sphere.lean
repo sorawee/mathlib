@@ -70,7 +70,7 @@ variables {K : Type*} {V : Type*} {V₂ : Type*} [normed_field K] [normed_group 
 variables [normed_space K V] [normed_space K V₂] [finite_dimensional K V] [finite_dimensional K V₂]
 
 def of_findim_eq (cond : findim K V = findim K V₂) : V ≃L[K] V₂ :=
-sorry
+(linear_equiv.of_findim_eq cond).to_continuous_linear_equiv
 
 end continuous_linear_equiv
 
