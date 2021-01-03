@@ -47,9 +47,6 @@ variables {E : Type*} [normed_group E]
 open is_R_or_C metric
 
 
--- variables [normed_field 𝕜] [normed_space 𝕜 E]
-
-
 lemma mem_sphere (v w : E) (r : ℝ) : w ∈ sphere v r ↔ ∥w - v∥ = r :=
 by simp [dist_eq_norm]
 
@@ -88,14 +85,14 @@ end general
 variables [is_R_or_C 𝕜] [normed_space 𝕜 E]
 
 
-instance [nontrivial E] : inhabited (sphere (0:E) 1) :=
-let a := classical.some (exists_ne (0:E)) in
-⟨⟨(∥a∥⁻¹:𝕜) • a,
-  begin
-    have ha : a ≠ 0 := classical.some_spec (exists_ne (0:E)),
-    have ha' : ∥a∥ ≠ 0 := ne_of_gt (norm_pos_iff.mpr ha),
-    simp [norm_smul, inv_mul_cancel ha', norm_eq_abs, abs_of_real]
-  end ⟩⟩
+-- instance [nontrivial E] : inhabited (sphere (0:E) 1) :=
+-- let a := classical.some (exists_ne (0:E)) in
+-- ⟨⟨(∥a∥⁻¹:𝕜) • a,
+--   begin
+--     have ha : a ≠ 0 := classical.some_spec (exists_ne (0:E)),
+--     have ha' : ∥a∥ ≠ 0 := ne_of_gt (norm_pos_iff.mpr ha),
+--     simp [norm_smul, inv_mul_cancel ha', norm_eq_abs, abs_of_real]
+--   end ⟩⟩
 
 
 end normed_space
@@ -235,6 +232,20 @@ inner_right_of_mem_orthogonal (mem_span_singleton_self v) hw
 lemma proj_orthogonal_singleton [complete_space E] (v : E) :
   orthogonal_projection ((𝕜 ∙ v)ᗮ) v = 0 :=
 orthogonal_projection_mem_subspace_orthogonal_precomplement_eq_zero (mem_span_singleton_self v)
+
+open finite_dimensional
+
+/-- In a finite-dimensional inner product space, the dimension of the orthogonal complement of the
+span of a nonzero vector is one less than the dimension of the space. -/
+lemma findim_orthogonal_span_singleton [finite_dimensional 𝕜 E] {v : E} (hv : v ≠ 0) :
+  findim 𝕜 (𝕜 ∙ v)ᗮ = findim 𝕜 E - 1 :=
+begin
+  haveI : nontrivial E := ⟨⟨v, 0, hv⟩⟩,
+  apply submodule.findim_add_findim_orthogonal',
+  simp only [findim_one hv, findim_euclidean_space, fintype.card_fin],
+  exact nat.add_sub_cancel' (nat.succ_le_iff.mpr findim_pos)
+end
+
 
 end inner_product_space
 
@@ -430,21 +441,14 @@ rfl
 
 variables [finite_dimensional ℝ E]
 
-/-- The orthogonal complement of the span of a singleton is linearly equivalent to ... -/
-def identify_hyperplane [finite_dimensional ℝ E] {v : E} (hv : v ≠ 0) :
-  (ℝ ∙ (v:E))ᗮ ≃L[ℝ] (euclidean_space ℝ (fin (findim ℝ E - 1))) :=
-continuous_linear_equiv.of_findim_eq
-begin
-  haveI : nontrivial E := ⟨⟨v, 0, hv⟩⟩,
-  apply submodule.findim_add_findim_orthogonal',
-  simp only [findim_one hv, findim_euclidean_space, fintype.card_fin],
-  exact (nat.add_sub_cancel' (nat.succ_le_iff.mpr findim_pos))
-end
-
 def stereographic' (v : sphere (0:E) 1) :
   local_homeomorph (sphere (0:E) 1) (euclidean_space ℝ (fin (findim ℝ E - 1))) :=
 (stereographic (norm_of_mem_sphere v)).trans
-(identify_hyperplane (nonzero_of_mem_unit_sphere v)).to_homeomorph.to_local_homeomorph
+(continuous_linear_equiv.of_findim_eq
+( begin
+    rw findim_orthogonal_span_singleton (nonzero_of_mem_unit_sphere v),
+    simp
+  end)).to_homeomorph.to_local_homeomorph
 
 @[simp] lemma stereographic'_source (v : sphere (0:E) 1) :
   (stereographic' v).source = {v}ᶜ :=
