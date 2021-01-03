@@ -18,6 +18,8 @@ it to put a smooth manifold structure on the sphere.
 variables {E : Type*} [inner_product_space ℝ E]
 variables (v : E)
 
+noncomputable theory
+
 open inner_product_space submodule metric finite_dimensional normed_space
 
 /-- Stereographic projection, forward direction. This is a map from an inner product space `E` to
