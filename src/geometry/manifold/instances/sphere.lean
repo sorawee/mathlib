@@ -82,8 +82,7 @@ ne_neg_of_mem_sphere 𝕜 (by norm_num) x
 
 end general
 
-variables [is_R_or_C 𝕜] [normed_space 𝕜 E]
-
+-- variables [is_R_or_C 𝕜] [normed_space 𝕜 E]
 
 -- instance [nontrivial E] : inhabited (sphere (0:E) 1) :=
 -- let a := classical.some (exists_ne (0:E)) in
@@ -94,92 +93,8 @@ variables [is_R_or_C 𝕜] [normed_space 𝕜 E]
 --     simp [norm_smul, inv_mul_cancel ha', norm_eq_abs, abs_of_real]
 --   end ⟩⟩
 
-
 end normed_space
 
-
-namespace inner_product_space
-/-! Lemmas for `analysis.normed_space.inner_product`. -/
-
-variables {𝕜 : Type*} [is_R_or_C 𝕜]
-variables {E : Type*} [inner_product_space 𝕜 E]
-
-open is_R_or_C
-
-local notation `⟪`x`, `y`⟫` := @inner 𝕜 E _ x y
-
-include 𝕜
-
-lemma norm_sub_crossmul (v x : E) :
-  ∥(∥v∥:𝕜) • x - (∥x∥:𝕜) • v∥ * ∥(∥v∥:𝕜) • x - (∥x∥:𝕜) • v∥
-  = 2 * ∥x∥ * ∥v∥ * (∥x∥ * ∥v∥ - re ⟪x, v⟫) :=
-begin
-  simp only [norm_sub_mul_self, inner_smul_left, inner_smul_right, norm_smul, norm_eq_abs,
-    conj_of_real, abs_of_real, of_real_im, of_real_re, mul_re, abs_norm_eq_norm],
-  ring
-end
-
-lemma inner_eq_norm_mul_iff {v x : E}:
-  ⟪v, x⟫ = (∥x∥ : 𝕜) * ∥v∥ ↔ (∥x∥ : 𝕜) • v = (∥v∥ : 𝕜) • x :=
-begin
-  transitivity ∥(∥x∥ : 𝕜) • v - (∥v∥ : 𝕜) • x∥ * ∥(∥x∥ : 𝕜) • v - (∥v∥ : 𝕜) • x∥ = 0,
-  { rw norm_sub_crossmul x v,
-    split,
-    { intros hxv,
-      rw hxv,
-      simp only [mul_re, norm_eq_zero, of_real_re, sub_zero, mul_zero, of_real_im],
-      ring },
-    { simp [is_R_or_C.two_ne_zero],
-      rintros ((h | h )| h),
-      { simp [h] },
-      { simp [h] },
-      have : abs ⟪v, x⟫ ≤ re ⟪v, x⟫,
-      { have := @abs_inner_le_norm 𝕜 _ _ _ v x,
-        linarith },
-      rw ← re_eq_self_of_le this,
-      norm_cast,
-      linarith } },
-  { split,
-    { intros h,
-      apply eq_of_norm_sub_eq_zero,
-      exact zero_eq_mul_self.mp h.symm },
-    { intros h,
-      simp [h] } }
-end
-
-lemma inner_eq_norm_mul_iff_of_norm_one {v x : E} (hv : ∥v∥ = 1) (hx : ∥x∥ = 1) :
-  ⟪v, x⟫ = 1 ↔ v = x :=
-by { convert inner_eq_norm_mul_iff using 2; simp [hv, hx] }
-
-
-end inner_product_space
-
-
-namespace inner_product_space
-/-! Reals-specific lemmas for `analysis.normed_space.inner_product`. -/
-
-variables {E : Type*} [inner_product_space ℝ E]
-
-lemma inner_eq_norm_mul_iff_real (v x : E) :
-  ⟪v, x⟫_ℝ = ∥x∥ * ∥v∥ ↔ ∥x∥ • v = ∥v∥ • x :=
-inner_eq_norm_mul_iff
-
-lemma inner_lt_norm_mul_iff_real (v x : E) :
-  ⟪v, x⟫_ℝ < ∥x∥ * ∥v∥ ↔ ∥x∥ • v ≠ ∥v∥ • x :=
-begin
-  have : _ ↔ (_ ≠ _):= not_congr (inner_eq_norm_mul_iff_real v x),
-  rw ← this,
-  refine ⟨ne_of_lt, lt_of_le_of_ne _⟩,
-  rw mul_comm,
-  refine le_trans _ (abs_real_inner_le_norm v x),
-  exact le_abs_self _,
-end
-
-lemma inner_lt_one_iff_of_norm_one {v x : E} (hv : ∥v∥ = 1) (hx : ∥x∥ = 1) :
-  ⟪v, x⟫_ℝ < 1 ↔ v ≠ x :=
-by { convert inner_lt_norm_mul_iff_real v x; simp [hv, hx] }
-
-end inner_product_space
 
 namespace inner_product_space
 /-! Another batch of lemmas for `analysis.normed_space.inner_product`, these ones specific to
@@ -321,7 +236,7 @@ lemma stereo_inv_fun_ne_north_pole (hv : ∥v∥ = 1) (w : (ℝ ∙ v)ᗮ) :
   stereo_inv_fun hv w ≠ (⟨v, by simp [hv]⟩ : sphere (0:E) 1) :=
 begin
   refine subtype.ne_of_val_ne _,
-  rw ← inner_lt_one_iff_of_norm_one _ hv,
+  rw ← inner_lt_one_iff_real_of_norm_one _ hv,
   { have hw : ⟪v, w⟫_ℝ = 0 := prod_zero_right v w.2,
     have hw' : (∥(w:E)∥ ^ 2 + 4)⁻¹ * (∥(w:E)∥ ^ 2 - 4) < 1,
     { refine (inv_mul_lt_iff' _).mpr _,
@@ -371,7 +286,7 @@ begin
     { exact pow_two _ } },
   -- two facts which will be helpful for clearing denominators in the main calculation
   have ha : 1 - a ≠ 0,
-  { have : a < 1 := (inner_lt_one_iff_of_norm_one hv (by simp)).mpr hx.symm,
+  { have : a < 1 := (inner_lt_one_iff_real_of_norm_one hv (by simp)).mpr hx.symm,
     linarith },
   have : 2 ^ 2 * ∥(y:E)∥ ^ 2 + 4 * (1 - a) ^ 2 ≠ 0,
   { refine ne_of_gt _,
