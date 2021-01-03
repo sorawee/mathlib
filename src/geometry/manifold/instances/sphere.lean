@@ -15,51 +15,6 @@ it to put a smooth manifold structure on the sphere.
 
 -/
 
-noncomputable theory
-
-namespace normed_space
-
-/-! Some facts about spheres in normed spaces, for `normed_space.basic`. -/
-
-variables {E : Type*} [normed_group E]
-open is_R_or_C metric
-
-
-@[simp] lemma mem_sphere (v w : E) (r : ℝ) : w ∈ sphere v r ↔ ∥w - v∥ = r :=
-by simp [dist_eq_norm]
-
-@[simp] lemma mem_sphere_zero {w : E} {r : ℝ} : w ∈ sphere (0:E) r ↔ ∥w∥ = r :=
-by simp [dist_eq_norm]
-
-@[simp] lemma norm_of_mem_sphere {r : ℝ} (x : sphere (0:E) r) : ∥(x:E)∥ = r :=
-mem_sphere_zero.mp x.2
-
-lemma nonzero_of_mem_sphere {r : ℝ} (hr : 0 < r) (x : sphere (0:E) r) : (x:E) ≠ 0 :=
-by rwa [← norm_pos_iff, norm_of_mem_sphere]
-
-lemma nonzero_of_mem_unit_sphere (x : sphere (0:E) 1) : (x:E) ≠ 0 :=
-by { apply nonzero_of_mem_sphere, norm_num }
-
-instance {r : ℝ} : has_neg (sphere (0:E) r) :=
-{ neg := λ w, ⟨-↑w, by simp⟩ }
-
-@[simp] lemma neg_sphere_eq_neg {r : ℝ} (v : sphere (0:E) r) :
-  (((-v) : sphere _ _) : E) = - (v:E) :=
-rfl
-
-variables (𝕜 : Type*)
-variables [normed_field 𝕜] [normed_space 𝕜 E]
-
-lemma ne_neg_of_mem_sphere [char_zero 𝕜] {r : ℝ} (hr : 0 < r) (x : sphere (0:E) r) : x ≠ - x :=
-λ h, nonzero_of_mem_sphere hr x (eq_zero_of_eq_neg 𝕜 (by { conv_lhs {rw h}, simp }))
-
-lemma ne_neg_of_mem_unit_sphere [char_zero 𝕜] (x : sphere (0:E) 1) : x ≠ - x :=
-ne_neg_of_mem_sphere 𝕜 (by norm_num) x
-
-
-end normed_space
-
-
 variables {E : Type*} [inner_product_space ℝ E]
 variables (v : E)
 
