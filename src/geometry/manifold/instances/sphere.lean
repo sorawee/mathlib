@@ -61,8 +61,8 @@ begin
   have h₁ : 0 ≤ ∥w∥ ^ 2 + 4 := by nlinarith,
   suffices : ∥(4:ℝ) • w + (∥w∥ ^ 2 - 4) • v∥ = ∥w∥ ^ 2 + 4,
   { have h₂ : ∥w∥ ^ 2 + 4 ≠ 0 := by nlinarith,
-    simp only [mem_sphere_zero, norm_smul, real.norm_eq_abs, abs_inv, this, abs_of_nonneg h₁,
-      stereo_inv_fun_aux_apply],
+    simp only [mem_sphere_zero_iff_norm, norm_smul, real.norm_eq_abs, abs_inv, this,
+      abs_of_nonneg h₁, stereo_inv_fun_aux_apply],
     field_simp },
   suffices : ∥(4:ℝ) • w + (∥w∥ ^ 2 - 4) • v∥ ^ 2 = (∥w∥ ^ 2 + 4) ^ 2,
   { have h₃ : 0 ≤ ∥stereo_inv_fun_aux v w∥ := norm_nonneg _,
@@ -208,7 +208,7 @@ variables [finite_dimensional ℝ E]
 
 def stereographic' (v : sphere (0:E) 1) :
   local_homeomorph (sphere (0:E) 1) (euclidean_space ℝ (fin (findim ℝ E - 1))) :=
-(stereographic (norm_of_mem_sphere v)).trans
+(stereographic (norm_eq_of_mem_sphere v)).trans
 (continuous_linear_equiv.of_findim_eq
 ( begin
     rw findim_orthogonal_span_singleton (nonzero_of_mem_unit_sphere v),
