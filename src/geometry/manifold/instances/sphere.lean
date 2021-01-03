@@ -17,28 +17,6 @@ it to put a smooth manifold structure on the sphere.
 
 noncomputable theory
 
-section linear_algebra_facts
-
-/-! Facts for linear algebra libraries -/
-
-variables (K : Type*) [field K]
-variables {V : Type*} [add_comm_group V] [module K V]
-
-open submodule finite_dimensional
-
-variables {K}
-
-lemma findim_one {v : V} (hv : v ≠ 0) : findim K (K ∙ v) = 1 :=
-begin
-  apply le_antisymm,
-  { exact findim_span_le_card ({v} : set V) },
-  { rw [nat.succ_le_iff, findim_pos_iff],
-    use [⟨v, mem_span_singleton_self v⟩, 0],
-    simp [hv] }
-end
-
-end linear_algebra_facts
-
 namespace normed_space
 
 /-! Some facts about spheres in normed spaces, for `normed_space.basic`. -/
@@ -47,10 +25,10 @@ variables {E : Type*} [normed_group E]
 open is_R_or_C metric
 
 
-lemma mem_sphere (v w : E) (r : ℝ) : w ∈ sphere v r ↔ ∥w - v∥ = r :=
+@[simp] lemma mem_sphere (v w : E) (r : ℝ) : w ∈ sphere v r ↔ ∥w - v∥ = r :=
 by simp [dist_eq_norm]
 
-lemma mem_sphere_zero {w : E} {r : ℝ} : w ∈ sphere (0:E) r ↔ ∥w∥ = r :=
+@[simp] lemma mem_sphere_zero {w : E} {r : ℝ} : w ∈ sphere (0:E) r ↔ ∥w∥ = r :=
 by simp [dist_eq_norm]
 
 @[simp] lemma norm_of_mem_sphere {r : ℝ} (x : sphere (0:E) r) : ∥(x:E)∥ = r :=
@@ -70,8 +48,6 @@ instance {r : ℝ} : has_neg (sphere (0:E) r) :=
 rfl
 
 variables (𝕜 : Type*)
-
-section general
 variables [normed_field 𝕜] [normed_space 𝕜 E]
 
 lemma ne_neg_of_mem_sphere [char_zero 𝕜] {r : ℝ} (hr : 0 < r) (x : sphere (0:E) r) : x ≠ - x :=
@@ -80,89 +56,8 @@ lemma ne_neg_of_mem_sphere [char_zero 𝕜] {r : ℝ} (hr : 0 < r) (x : sphere (
 lemma ne_neg_of_mem_unit_sphere [char_zero 𝕜] (x : sphere (0:E) 1) : x ≠ - x :=
 ne_neg_of_mem_sphere 𝕜 (by norm_num) x
 
-end general
-
--- variables [is_R_or_C 𝕜] [normed_space 𝕜 E]
-
--- instance [nontrivial E] : inhabited (sphere (0:E) 1) :=
--- let a := classical.some (exists_ne (0:E)) in
--- ⟨⟨(∥a∥⁻¹:𝕜) • a,
---   begin
---     have ha : a ≠ 0 := classical.some_spec (exists_ne (0:E)),
---     have ha' : ∥a∥ ≠ 0 := ne_of_gt (norm_pos_iff.mpr ha),
---     simp [norm_smul, inv_mul_cancel ha', norm_eq_abs, abs_of_real]
---   end ⟩⟩
 
 end normed_space
-
-
-namespace inner_product_space
-/-! Another batch of lemmas for `analysis.normed_space.inner_product`, these ones specific to
-projections onto singletons -/
-
-variables {𝕜 : Type*} [is_R_or_C 𝕜]
-variables {E : Type*} [inner_product_space 𝕜 E]
-
-open submodule
-
-local notation `⟪`x`, `y`⟫` := @inner 𝕜 E _ x y
-
-lemma orthogonal_projection_singleton {v : E} (hv : v ≠ 0) (w : E) :
-  ↑(orthogonal_projection (𝕜 ∙ v) w) = (⟪v, w⟫ / ∥v∥ ^ 2) • v :=
-begin
-  apply eq_orthogonal_projection_of_mem_of_inner_eq_zero,
-  { rw mem_span_singleton,
-    use ⟪v, w⟫ / ∥v∥ ^ 2 },
-  intros x hx,
-  rw mem_span_singleton at hx,
-  obtain ⟨c, rfl⟩ := hx,
-  have hv' : ↑∥v∥ ^ 2 = ⟪v, v⟫ := by { norm_cast, simp [norm_sq_eq_inner] },
-  have hv'' : ⟪v, v⟫ ≠ 0 := hv ∘ inner_self_eq_zero.mp,
-  have h_div := div_mul_cancel _ hv'',
-  simp [inner_sub_left, inner_smul_left, inner_smul_right, is_R_or_C.conj_div, conj_sym, hv'],
-  right,
-  rw h_div,
-  simp [sub_self],
-end
-
-lemma orthogonal_projection_unit_singleton {v : E} (hv : ∥v∥ = 1) (w : E) :
-  ↑(orthogonal_projection (𝕜 ∙ v) w) = ⟪v, w⟫ • v :=
-begin
-  have hv' : v ≠ 0,
-  { intros h,
-    rw ← norm_eq_zero at h,
-    rw hv at h,
-    norm_num at h },
-  convert orthogonal_projection_singleton hv' w,
-  rw hv,
-  simp
-end
-
-lemma prod_zero_left (v : E) {w : E} (hw : w ∈ (𝕜 ∙ v)ᗮ) : ⟪w, v⟫ = 0 :=
-inner_left_of_mem_orthogonal (mem_span_singleton_self v) hw
-
-lemma prod_zero_right (v : E) {w : E} (hw : w ∈ (𝕜 ∙ v)ᗮ) : ⟪v, w⟫ = 0 :=
-inner_right_of_mem_orthogonal (mem_span_singleton_self v) hw
-
-lemma proj_orthogonal_singleton [complete_space E] (v : E) :
-  orthogonal_projection ((𝕜 ∙ v)ᗮ) v = 0 :=
-orthogonal_projection_mem_subspace_orthogonal_precomplement_eq_zero (mem_span_singleton_self v)
-
-open finite_dimensional
-
-/-- In a finite-dimensional inner product space, the dimension of the orthogonal complement of the
-span of a nonzero vector is one less than the dimension of the space. -/
-lemma findim_orthogonal_span_singleton [finite_dimensional 𝕜 E] {v : E} (hv : v ≠ 0) :
-  findim 𝕜 (𝕜 ∙ v)ᗮ = findim 𝕜 E - 1 :=
-begin
-  haveI : nontrivial E := ⟨⟨v, 0, hv⟩⟩,
-  apply submodule.findim_add_findim_orthogonal',
-  simp only [findim_one hv, findim_euclidean_space, fintype.card_fin],
-  exact nat.add_sub_cancel' (nat.succ_le_iff.mpr findim_pos)
-end
-
-
-end inner_product_space
 
 
 variables {E : Type*} [inner_product_space ℝ E]
@@ -206,18 +101,17 @@ rfl
 lemma stereo_inv_fun_aux_mem (hv : ∥v∥ = 1) {w : E} (hw : w ∈ (ℝ ∙ v)ᗮ) :
   stereo_inv_fun_aux v w ∈ (sphere (0:E) 1) :=
 begin
-  rw mem_sphere_zero,
   have h₁ : 0 ≤ ∥w∥ ^ 2 + 4 := by nlinarith,
   suffices : ∥(4:ℝ) • w + (∥w∥ ^ 2 - 4) • v∥ = ∥w∥ ^ 2 + 4,
   { have h₂ : ∥w∥ ^ 2 + 4 ≠ 0 := by nlinarith,
-    simp only [norm_smul, real.norm_eq_abs, abs_inv, this, abs_of_nonneg h₁,
+    simp only [mem_sphere_zero, norm_smul, real.norm_eq_abs, abs_inv, this, abs_of_nonneg h₁,
       stereo_inv_fun_aux_apply],
     field_simp },
   suffices : ∥(4:ℝ) • w + (∥w∥ ^ 2 - 4) • v∥ ^ 2 = (∥w∥ ^ 2 + 4) ^ 2,
   { have h₃ : 0 ≤ ∥stereo_inv_fun_aux v w∥ := norm_nonneg _,
     simpa [h₁, h₃, -one_pow] using this },
-  simp [norm_add_pow_two_real, norm_smul, inner_smul_left, inner_smul_right, prod_zero_left _ hw,
-    mul_pow, real.norm_eq_abs, hv],
+  simp [norm_add_pow_two_real, norm_smul, inner_smul_left, inner_smul_right,
+    inner_left_of_mem_orthogonal_singleton _ hw, mul_pow, real.norm_eq_abs, hv],
   ring,
 end
 
@@ -230,14 +124,12 @@ def stereo_inv_fun (hv : ∥v∥ = 1) (w : (ℝ ∙ v)ᗮ) : sphere (0:E) 1 :=
   (stereo_inv_fun hv w : E) = (∥w∥ ^ 2 + 4)⁻¹ • ((4:ℝ) • w + (∥w∥ ^ 2 - 4) • v) :=
 rfl
 
-example (a b : E) (h : ⟪a, b⟫_ℝ = 0) : ⟪b, a⟫_ℝ = 0 := inner_eq_zero_sym.mp h
-
 lemma stereo_inv_fun_ne_north_pole (hv : ∥v∥ = 1) (w : (ℝ ∙ v)ᗮ) :
   stereo_inv_fun hv w ≠ (⟨v, by simp [hv]⟩ : sphere (0:E) 1) :=
 begin
   refine subtype.ne_of_val_ne _,
   rw ← inner_lt_one_iff_real_of_norm_one _ hv,
-  { have hw : ⟪v, w⟫_ℝ = 0 := prod_zero_right v w.2,
+  { have hw : ⟪v, w⟫_ℝ = 0 := inner_right_of_mem_orthogonal_singleton v w.2,
     have hw' : (∥(w:E)∥ ^ 2 + 4)⁻¹ * (∥(w:E)∥ ^ 2 - 4) < 1,
     { refine (inv_mul_lt_iff' _).mpr _,
       { nlinarith },
@@ -276,8 +168,8 @@ begin
   set y := orthogonal_projection ((ℝ ∙ v)ᗮ) x,
   have split : ↑x = a • v + ↑y,
   { convert eq_sum_orthogonal_projection_self_orthogonal_complement (ℝ ∙ v) x,
-    exact (orthogonal_projection_unit_singleton hv x).symm },
-  have hvy : ⟪v, y⟫_ℝ = 0 := prod_zero_right v y.2,
+    exact (orthogonal_projection_unit_singleton ℝ hv x).symm },
+  have hvy : ⟪v, y⟫_ℝ = 0 := inner_right_of_mem_orthogonal_singleton v y.2,
   have pythag : 1 = a ^ 2 + ∥(y:E)∥ ^ 2,
   { have hvy' : ⟪a • v, y⟫_ℝ = 0 := by simp [inner_smul_left, hvy],
     convert norm_add_square_eq_norm_square_add_norm_square_of_inner_eq_zero _ _ hvy' using 2,
@@ -320,10 +212,11 @@ begin
     field_simp,
     ring },
   convert congr_arg (λ c, c • w) this,
-  { have h₁ : orthogonal_projection ((ℝ ∙ v)ᗮ) v = 0 := proj_orthogonal_singleton v,
+  { have h₁ : orthogonal_projection ((ℝ ∙ v)ᗮ) v = 0 :=
+      orthogonal_projection_orthogonal_complement_singleton_eq_zero v,
     have h₂ : orthogonal_projection ((ℝ ∙ v)ᗮ) w = w :=
       orthogonal_projection_mem_subspace_eq_self w,
-    have h₃ : inner_right v w = (0:ℝ) := prod_zero_right v w.2,
+    have h₃ : inner_right v w = (0:ℝ) := inner_right_of_mem_orthogonal_singleton v w.2,
     have h₄ : inner_right v v = (1:ℝ) := by simp [real_inner_self_eq_norm_square, hv],
     simp [h₁, h₂, h₃, h₄, continuous_linear_map.map_add, continuous_linear_map.map_smul,
       mul_smul] },
@@ -373,8 +266,6 @@ by simp [stereographic']
   (stereographic' v).target = set.univ :=
 by simp [stereographic']
 
-open_locale classical
-
 instance : charted_space (euclidean_space ℝ (fin (findim ℝ E - 1))) (sphere (0:E) 1) :=
 { atlas            := { f | ∃ v : (sphere (0:E) 1), f = stereographic' v},
   chart_at         := λ v, stereographic' (-v),
@@ -393,6 +284,19 @@ begin
   simp [stereographic'],
   sorry
 end
+
+
+
+-- variables [is_R_or_C 𝕜] [normed_space 𝕜 E]
+
+-- instance [nontrivial E] : inhabited (sphere (0:E) 1) :=
+-- let a := classical.some (exists_ne (0:E)) in
+-- ⟨⟨(∥a∥⁻¹:𝕜) • a,
+--   begin
+--     have ha : a ≠ 0 := classical.some_spec (exists_ne (0:E)),
+--     have ha' : ∥a∥ ≠ 0 := ne_of_gt (norm_pos_iff.mpr ha),
+--     simp [norm_smul, inv_mul_cancel ha', norm_eq_abs, abs_of_real]
+--   end ⟩⟩
 
 
 -- instance : charted_space (euclidean_space ℝ (fin (findim ℝ E - 1))) (sphere (0:E) 1) :=
