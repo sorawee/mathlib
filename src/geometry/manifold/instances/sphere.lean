@@ -22,6 +22,8 @@ noncomputable theory
 
 open inner_product_space submodule metric finite_dimensional normed_space
 
+open_locale manifold
+
 /-- Stereographic projection, forward direction. This is a map from an inner product space `E` to
 the orthogonal complement of an element `v` of `E`. It is smooth away from the affine hyperplane
 through `v` parallel to the orthogonal complement.  It restricts on the sphere to the stereographic
@@ -35,15 +37,20 @@ variables {v}
   stereo_to_fun v x = (2 / ((1:ℝ) - inner_right v x)) • orthogonal_projection ((ℝ ∙ v)ᗮ) x :=
 rfl
 
-lemma continuous_on_stereo_to_fun [complete_space E] :
-  continuous_on (stereo_to_fun v) {x : E | inner_right v x ≠ (1:ℝ)} :=
+lemma times_cont_diff_on_stereo_to_fun [complete_space E] :
+  times_cont_diff_on ℝ ⊤ (stereo_to_fun v) {x : E | inner_right v x ≠ (1:ℝ)} :=
 begin
-  refine continuous_on.smul _ (orthogonal_projection ((ℝ ∙ v)ᗮ)).continuous.continuous_on,
-  refine continuous_const.continuous_on.div _ _,
-  { exact (continuous_const.sub (inner_right v).continuous).continuous_on },
+  refine times_cont_diff_on.smul _
+    (orthogonal_projection ((ℝ ∙ v)ᗮ)).times_cont_diff.times_cont_diff_on,
+  refine times_cont_diff_const.times_cont_diff_on.div _ _,
+  { exact (times_cont_diff_const.sub (inner_right v).times_cont_diff).times_cont_diff_on },
   { intros x h h',
     exact h (sub_eq_zero.mp h').symm }
 end
+
+lemma continuous_on_stereo_to_fun [complete_space E] :
+  continuous_on (stereo_to_fun v) {x : E | inner_right v x ≠ (1:ℝ)} :=
+times_cont_diff_on_stereo_to_fun.continuous_on
 
 variables (v)
 
@@ -72,6 +79,20 @@ begin
   ring,
 end
 
+lemma times_cont_diff_stereo_inv_fun_aux :
+  times_cont_diff ℝ ⊤ (stereo_inv_fun_aux v) :=
+begin
+  have h₀ : times_cont_diff ℝ ⊤ (λ w : E, ∥w∥ ^ 2) := sorry, -- @urkud will PR
+  have h₁ : times_cont_diff ℝ ⊤ (λ w : E, (∥w∥ ^ 2 + 4)⁻¹),
+  { refine (h₀.add times_cont_diff_const).inv _,
+    intros x,
+    nlinarith },
+  have h₂ : times_cont_diff ℝ ⊤ (λ w, (4:ℝ) • w + (∥w∥ ^ 2 - 4) • v),
+  { refine (times_cont_diff_const.smul times_cont_diff_id).add _,
+    refine (h₀.sub times_cont_diff_const).smul times_cont_diff_const },
+  convert h₁.smul h₂
+end
+
 /-- Stereographic projection, reverse direction.  This is a map from the orthogonal complement of a
 unit vector `v` in an inner product space `E` to the unit sphere in `E`. -/
 def stereo_inv_fun (hv : ∥v∥ = 1) (w : (ℝ ∙ v)ᗮ) : sphere (0:E) 1 :=
@@ -98,20 +119,7 @@ end
 
 lemma continuous_stereo_inv_fun (hv : ∥v∥ = 1) :
   continuous (stereo_inv_fun hv) :=
-begin
-  let c : sphere (0:E) 1 → E := coe,
-  suffices : continuous (c ∘ (stereo_inv_fun hv)),
-  { exact continuous_induced_rng this },
-  have h₀ : continuous (λ w : E, ∥w∥ ^ 2) := (continuous_pow 2).comp continuous_norm,
-  have h₁ : continuous (λ w : E, (∥w∥ ^ 2 + 4)⁻¹),
-  { refine (h₀.add continuous_const).inv' _,
-    intros w,
-    nlinarith },
-  have h₂ : continuous (λ w, (4:ℝ) • w + (∥w∥ ^ 2 - 4) • v),
-  { refine (continuous_const.smul continuous_id).add _,
-    refine (h₀.sub continuous_const).smul continuous_const },
-  convert (h₁.smul h₂).comp continuous_subtype_coe
-end
+continuous_induced_rng (times_cont_diff_stereo_inv_fun_aux.continuous.comp continuous_subtype_coe)
 
 variables [complete_space E]
 
@@ -229,37 +237,45 @@ instance : charted_space (euclidean_space ℝ (fin (findim ℝ E - 1))) (sphere 
   mem_chart_source := λ v, by simpa using ne_neg_of_mem_unit_sphere ℝ v,
   chart_mem_atlas  := λ v, ⟨-v, rfl⟩ }
 
+lemma foo {E F : Type*} [normed_group E] [normed_group F] [normed_space ℝ E] [normed_space ℝ F]
+  (U : E ≃L[ℝ] F) : U.to_homeomorph.symm = U.symm.to_homeomorph := rfl
 
-open_locale manifold
+lemma foo' {E F : Type*} [normed_group E] [normed_group F] [normed_space ℝ E] [normed_space ℝ F]
+  (U : E ≃L[ℝ] F) (x : E) : U.to_homeomorph x = U x := rfl
 
 instance : smooth_manifold_with_corners (𝓡 ((findim ℝ E - 1))) (sphere (0:E) 1) :=
 smooth_manifold_with_corners_of_times_cont_diff_on
 (𝓡 ((findim ℝ E - 1)))
 (sphere (0:E) 1)
 begin
+  set n : ℕ := findim ℝ E - 1,
   rintros _ _ ⟨v, rfl⟩ ⟨v', rfl⟩,
-  simp [stereographic'],
-  sorry
+  have hv_perp : findim ℝ (ℝ ∙ (v:E))ᗮ = findim ℝ (euclidean_space ℝ (fin n)),
+  { rw findim_orthogonal_span_singleton (nonzero_of_mem_unit_sphere v),
+    simp },
+  have hv'_perp : findim ℝ (ℝ ∙ (v':E))ᗮ = findim ℝ (euclidean_space ℝ (fin n)),
+  { rw findim_orthogonal_span_singleton (nonzero_of_mem_unit_sphere v'),
+    simp },
+  let U : (ℝ ∙ (v:E))ᗮ ≃L[ℝ] euclidean_space ℝ (fin n) :=
+    continuous_linear_equiv.of_findim_eq hv_perp,
+  let U' : (ℝ ∙ (v':E))ᗮ ≃L[ℝ] euclidean_space ℝ (fin n) :=
+    continuous_linear_equiv.of_findim_eq hv'_perp,
+  let hv := norm_eq_of_mem_sphere v,
+  let hv' := norm_eq_of_mem_sphere v',
+  have hUv : stereographic' v = (stereographic hv).trans U.to_homeomorph.to_local_homeomorph := rfl,
+  have hU'v' : stereographic' v' = (stereographic hv').trans U'.to_homeomorph.to_local_homeomorph := rfl,
+  have H₁ := U'.to_continuous_linear_map.times_cont_diff.comp_times_cont_diff_on
+    times_cont_diff_on_stereo_to_fun,
+  have H₂ := (times_cont_diff_stereo_inv_fun_aux.comp (ℝ ∙ (v:E))ᗮ.subtype_continuous.times_cont_diff).comp
+      U.symm.to_continuous_linear_map.times_cont_diff,
+  have := H₁.comp' (H₂.times_cont_diff_on : times_cont_diff_on ℝ ⊤ _ set.univ),
+  have h_set : ∀ p : sphere (0:E) 1, p = v' ↔ ⟪(v':E), p⟫_ℝ = 1,
+  { intros p,
+    have hp := norm_eq_of_mem_sphere p,
+    simp [subtype.ext_iff, inner_eq_norm_mul_iff_of_norm_one, hv', hp],
+    exact eq_comm },
+  simp,
+  convert this,
+  ext x,
+  simp [h_set, hUv, hU'v', stereographic, foo, foo', this]
 end
-
-
-
--- variables [is_R_or_C 𝕜] [normed_space 𝕜 E]
-
--- instance [nontrivial E] : inhabited (sphere (0:E) 1) :=
--- let a := classical.some (exists_ne (0:E)) in
--- ⟨⟨(∥a∥⁻¹:𝕜) • a,
---   begin
---     have ha : a ≠ 0 := classical.some_spec (exists_ne (0:E)),
---     have ha' : ∥a∥ ≠ 0 := ne_of_gt (norm_pos_iff.mpr ha),
---     simp [norm_smul, inv_mul_cancel ha', norm_eq_abs, abs_of_real]
---   end ⟩⟩
-
-
--- instance : charted_space (euclidean_space ℝ (fin (findim ℝ E - 1))) (sphere (0:E) 1) :=
--- { atlas            := { stereographic' (default (sphere (0:E) 1)),
---                         stereographic' (- default (sphere (0:E) 1)) },
---   chart_at         := λ v, if v = default _ then stereographic' (- default (sphere (0:E) 1))
---                                             else stereographic' (default (sphere (0:E) 1)),
---   mem_chart_source := sorry,
---   chart_mem_atlas  := sorry }
