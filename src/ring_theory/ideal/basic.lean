@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Kenny Lau, Chris Hughes, Mario Carneiro
 -/
 import algebra.associated
+import algebra.algebra.operations
 import linear_algebra.basic
 import order.zorn
 import order.atoms
@@ -268,6 +269,18 @@ begin
   rcases exists_le_maximal J hnonmax with ⟨M, hM1, hM2⟩,
   exact hmax M (lt_of_lt_of_le hPJ hM2) hM1,
 end
+
+/-- If a prime ideal contains a product of ideals, it contains one of the ideals-/
+lemma prime_contains_prod_contains_factor (P : ideal α) (hp : is_prime P)
+  (Ω : multiset (ideal α)) : multiset.prod Ω ≤ P → ∃ I ∈ Ω, I ≤ P :=
+begin
+  intro hΩ,
+  by_contradiction habs,
+  have hxI : ∀ I ∈ Ω, exists x_I ∈ I, x_I ∉ P,sorry,
+  let x := multiset.prod x_I,
+
+end
+
 
 theorem mem_span_pair {x y z : α} :
   z ∈ span ({x, y} : set α) ↔ ∃ a b, a * x + b * y = z :=
