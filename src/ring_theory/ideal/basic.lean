@@ -275,10 +275,16 @@ lemma prime_contains_prod_contains_factor (P : ideal α) (hp : is_prime P)
   (Ω : multiset (ideal α)) : multiset.prod Ω ≤ P → ∃ I ∈ Ω, I ≤ P :=
 begin
   intro hΩ,
+  replace hΩ : forall x : α, x ∉ P → x ∉ (multiset.prod Ω), tauto,
   by_contradiction habs,
-  have hxI : ∀ I ∈ Ω, exists x_I ∈ I, x_I ∉ P,sorry,
-  let x := multiset.prod x_I,
-
+  replace habs : forall I : ideal α, I ∈ Ω → ¬ I ≤ P,
+  { simp only [not_exists, exists_prop, not_and] at *,
+    exact habs, },
+  have hxI : forall I ∈ Ω, ∃ y_I : α, y_I ∈ I ∧ y_I ∉ P, sorry,
+  have hxnP : exists Θ : multiset α, multiset.prod Θ ∉ P,sorry,
+  cases hxnP with Θ,
+  have hxΩ : multiset.prod Θ ∈ (multiset.prod Ω), sorry,
+  tauto,
 end
 
 
