@@ -270,19 +270,39 @@ begin
   exact hmax M (lt_of_lt_of_le hPJ hM2) hM1,
 end
 
+lemma gioco (H : forall I : ideal α, exists y : α, y ∈ I)
+  (J : ideal α) : ∃ z : α, z ∈ J :=
+begin
+  λ H J,
+--   apply H J,
+end
+
+
 /-- If a prime ideal contains a product of ideals, it contains one of the ideals-/
 lemma prime_contains_prod_contains_factor (P : ideal α) (hp : is_prime P)
   (Ω : multiset (ideal α)) : multiset.prod Ω ≤ P → ∃ I ∈ Ω, I ≤ P :=
 begin
+  by_cases hvoid : Ω = ∅, sorry,
   intro hΩ,
   replace hΩ : forall x : α, x ∉ P → x ∉ (multiset.prod Ω), tauto,
   by_contradiction habs,
   replace habs : forall I : ideal α, I ∈ Ω → ¬ I ≤ P,
   { simp only [not_exists, exists_prop, not_and] at *,
     exact habs, },
-  have hxI : forall I ∈ Ω, ∃ y_I : α, y_I ∈ I ∧ y_I ∉ P, sorry,
+  -- let I
+  have hxI : ∀ I ∈ Ω, ∃ y_I : α, y_I ∈ I ∧ y_I ∉ P, sorry,
+  let f : Π I, I ∈ Ω → multiset α,
+  -- let f : multiset (ideal α) → multiset α,
+  -- let Θ : multiset α,
+  -- let f : Π I, I ∈ Ω → α := ⟨hxI,a⟩,
+  --  := λ I, hxI I _,
+  -- have uno : exists I : ideal α, I ∈ Ω, sorry,
+  -- cases uno,
+  -- obtain ⟨y,hy⟩ := hxI uno_w uno_h,
+  -- let f := λ I,
+  -- let I := multiset.prod Ω y_I,
   have hxnP : exists Θ : multiset α, multiset.prod Θ ∉ P,sorry,
-  cases hxnP with Θ,
+  -- cases hxnP with Θ,
   have hxΩ : multiset.prod Θ ∈ (multiset.prod Ω), sorry,
   tauto,
 end
