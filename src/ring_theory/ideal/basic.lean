@@ -270,28 +270,64 @@ begin
   exact hmax M (lt_of_lt_of_le hPJ hM2) hM1,
 end
 
-lemma gioco (H : forall I : ideal α, exists y : α, y ∈ I)
-  (J : ideal α) : ∃ z : α, z ∈ J :=
-begin
-  λ H J,
---   apply H J,
+/-- If a prime ideal contains a product of ideals, it contains one of the ideals-/
+lemma prime_contains_two_primes (P J₁ J₂ : ideal α) (hP : is_prime P)
+  : J₁ * J₂ ≤ P → J₁ ≤ P ∨ J₂ ≤ P :=
+begin sorry,
 end
 
-
-/-- If a prime ideal contains a product of ideals, it contains one of the ideals-/
-lemma prime_contains_prod_contains_factor (P : ideal α) (hp : is_prime P)
-  (Ω : multiset (ideal α)) : multiset.prod Ω ≤ P → ∃ I ∈ Ω, I ≤ P :=
+lemma prime_contains_prod_contains_factor (P : ideal α) (hP : is_prime P)
+  (Ω : multiset (ideal α)) (hprod : multiset.prod Ω ≤ P) : ∃ I ∈ Ω, I ≤ P :=
 begin
-  by_cases hvoid : Ω = ∅, sorry,
-  intro hΩ,
-  replace hΩ : forall x : α, x ∉ P → x ∉ (multiset.prod Ω), tauto,
-  by_contradiction habs,
-  replace habs : forall I : ideal α, I ∈ Ω → ¬ I ≤ P,
-  { simp only [not_exists, exists_prop, not_and] at *,
-    exact habs, },
-  -- let I
-  have hxI : ∀ I ∈ Ω, ∃ y_I : α, y_I ∈ I ∧ y_I ∉ P, sorry,
-  let f : Π I, I ∈ Ω → multiset α,
+  unfreezingI {induction hcard : Ω.card with n generalizing Ω},
+  -- induction hcard : Ω.card with n,
+  { have hzero : Ω = 0,
+    apply multiset.card_eq_zero.mp hcard,
+    -- have this : (multiset.prod Ω) = 1,
+    -- rw hzero,
+    -- apply multiset.prod_zero,
+    rw hzero,
+    sorry },
+  { have hnonzero : Ω ≠ 0,
+    { apply (not_iff_not.mpr multiset.card_eq_zero).mp,
+      rw hcard,
+      apply nat.succ_ne_zero },
+    have he : ∃ I : ideal α, I ∈ Ω,
+    apply multiset.exists_mem_of_ne_zero hnonzero,
+    rcases he with ⟨J, hJ⟩,--BLEAH
+    have hf : ∃ Θ : multiset (ideal α), Ω = J ::ₘ Θ,
+    apply multiset.exists_cons_of_mem hJ,
+    rcases hf with ⟨Θ, hΘ⟩ ,--BLEAH
+    have hΘ_card : Θ.card = n,
+    { --apply multiset.card_cons J Θ,
+      sorry,},
+    let J' := (multiset.prod Θ),
+    have hJJ' : J * J' ≤ P,
+    rwa [hΘ,multiset.prod_cons J Θ] at hprod,
+    have htwo : J ≤ P ∨ J' ≤ P,
+    apply prime_contains_two_primes P J J' hP hJJ',
+    cases htwo,
+    { use J, split, exact hJ, exact htwo },--BLEAH
+    have hmid : ∃ (I : ideal α) ( H : I ∈ Θ), I ≤ P,
+    { have this : Θ.prod ≤ P, sorry,
+      apply ih Θ this hΘ_card },
+    rcases hmid with ⟨I, hIΘ, hIP⟩, --BLEAH
+    use I, split, swap, exact hIP,
+    simp only [*, multiset.mem_cons, or_true],
+  },
+    -- unfreezingI { apply prime_contains_two_primes P J J' hP hJJ',}
+
+  -- induction Ω with _ _ _ _,
+  -- by_cases hvoid : Ω = ∅, sorry,
+  -- intro hΩ,
+  -- replace hΩ : forall x : α, x ∉ P → x ∉ (multiset.prod Ω), tauto,
+  -- by_contradiction habs,
+  -- replace habs : forall I : ideal α, I ∈ Ω → ¬ I ≤ P,
+  -- { simp only [not_exists, exists_prop, not_and] at *,
+  --   exact habs, },
+  -- -- let I
+  -- have hxI : ∀ I ∈ Ω, ∃ y_I : α, y_I ∈ I ∧ y_I ∉ P, sorry,
+  -- let f : Π I, I ∈ Ω → multiset α,
   -- let f : multiset (ideal α) → multiset α,
   -- let Θ : multiset α,
   -- let f : Π I, I ∈ Ω → α := ⟨hxI,a⟩,
@@ -301,12 +337,11 @@ begin
   -- obtain ⟨y,hy⟩ := hxI uno_w uno_h,
   -- let f := λ I,
   -- let I := multiset.prod Ω y_I,
-  have hxnP : exists Θ : multiset α, multiset.prod Θ ∉ P,sorry,
-  -- cases hxnP with Θ,
-  have hxΩ : multiset.prod Θ ∈ (multiset.prod Ω), sorry,
-  tauto,
+  -- have hxnP : exists Θ : multiset α, multiset.prod Θ ∉ P,sorry,
+  -- -- cases hxnP with Θ,
+  -- have hxΩ : multiset.prod Θ ∈ (multiset.prod Ω), sorry,
+  -- tauto,
 end
-
 
 theorem mem_span_pair {x y z : α} :
   z ∈ span ({x, y} : set α) ↔ ∃ a b, a * x + b * y = z :=
