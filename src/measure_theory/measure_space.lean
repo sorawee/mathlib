@@ -788,9 +788,12 @@ ext $ λ u hu, by simp [*, set.inter_assoc]
 lemma restrict_apply_eq_zero (ht : is_measurable t) : μ.restrict s t = 0 ↔ μ (t ∩ s) = 0 :=
 by rw [restrict_apply ht]
 
+lemma measure_inter_eq_zero_of_restrict (h : μ.restrict s t = 0) : μ (t ∩ s) = 0 :=
+nonpos_iff_eq_zero.1 (h ▸ le_restrict_apply _ _)
+
 lemma restrict_apply_eq_zero' (hs : is_measurable s) : μ.restrict s t = 0 ↔ μ (t ∩ s) = 0 :=
 begin
-  refine ⟨λ h, nonpos_iff_eq_zero.1 (h ▸ le_restrict_apply _ _), λ h, _⟩,
+  refine ⟨measure_inter_eq_zero_of_restrict, λ h, _⟩,
   rcases exists_is_measurable_superset_of_null h with ⟨t', htt', ht', ht'0⟩,
   apply measure_mono_null ((inter_subset _ _ _).1 htt'),
   rw [restrict_apply (hs.compl.union ht'), union_inter_distrib_right, compl_inter_self,
@@ -1197,6 +1200,8 @@ compl_mem_ae_iff.symm
 @[simp] lemma ae_eq_bot : μ.ae = ⊥ ↔ μ = 0 :=
 by rw [← empty_in_sets_eq_bot, mem_ae_iff, compl_empty, measure_univ_eq_zero]
 
+@[simp] lemma ae_zero : (0 : measure α).ae = ⊥ := ae_eq_bot.2 rfl
+
 lemma ae_of_all {p : α → Prop} (μ : measure α) : (∀ a, p a) → ∀ᵐ a ∂ μ, p a :=
 eventually_of_forall
 
@@ -1266,6 +1271,13 @@ begin
   congr' with x, simp [and_comm]
 end
 
+lemma ae_imp_of_ae_restrict {s : set α} {p : α → Prop} (h : ∀ᵐ x ∂(μ.restrict s), p x) :
+  ∀ᵐ x ∂μ, x ∈ s → p x :=
+begin
+  simp only [ae_iff] at h ⊢,
+  simpa [set_of_and, inter_comm] using  measure_inter_eq_zero_of_restrict h
+end
+
 lemma ae_restrict_iff' {s : set α} {p : α → Prop} (hp : is_measurable s) :
   (∀ᵐ x ∂(μ.restrict s), p x) ↔ ∀ᵐ x ∂μ, x ∈ s → p x :=
 begin
@@ -1291,6 +1303,9 @@ begin
   calc μ {x | g (f x) ≠ g' (f x)} ≤ μ (f⁻¹' t) : measure_mono (λ x hx, ht hx)
   ... = 0 : by rwa ← measure.map_apply hf tmeas
 end
+
+lemma le_ae_restrict : μ.ae ⊓ 𝓟 s ≤ (μ.restrict s).ae :=
+λ s hs, eventually_inf_principal.2 (ae_imp_of_ae_restrict hs)
 
 @[simp] lemma ae_restrict_eq (hs : is_measurable s) : (μ.restrict s).ae = μ.ae ⊓ 𝓟 s :=
 begin
@@ -2016,6 +2031,24 @@ def completion (μ : measure α) : @measure_theory.measure α (null_measurable �
 instance completion.is_complete (μ : measure α) : (completion μ).is_complete :=
 λ z hz, null_is_null_measurable hz
 
+lemma measurable.ae_eq {α β} [measurable_space α] [measurable_space β] {μ : measure α}
+  [hμ : μ.is_complete] {f g : α → β} (hf : measurable f) (hfg : f =ᵐ[μ] g) :
+  measurable g :=
+begin
+  intros s hs,
+  let t := {x | f x = g x},
+  have ht_compl : μ tᶜ = 0, by rwa [filter.eventually_eq, ae_iff] at hfg,
+  rw (set.inter_union_compl (g ⁻¹' s) t).symm,
+  refine is_measurable.union _ _,
+  { have h_g_to_f : (g ⁻¹' s) ∩ t = (f ⁻¹' s) ∩ t,
+    { ext,
+      simp only [set.mem_inter_iff, set.mem_preimage, and.congr_left_iff, set.mem_set_of_eq],
+      exact λ hx, by rw hx, },
+    rw h_g_to_f,
+    exact is_measurable.inter (hf hs) (is_measurable.compl_iff.mp (hμ tᶜ ht_compl)), },
+  { exact hμ (g ⁻¹' s ∩ tᶜ) (measure_mono_null (set.inter_subset_right _ _) ht_compl), },
+end
+
 end is_complete
 
 namespace measure_theory
@@ -2064,6 +2097,24 @@ def ae_measurable (f : α → β) (μ : measure α . measure_theory.volume_tac) 
 lemma measurable.ae_measurable (h : measurable f) : ae_measurable f μ :=
 ⟨f, h, ae_eq_refl f⟩
 
+@[nontriviality] lemma subsingleton.ae_measurable [subsingleton α] : ae_measurable f μ :=
+subsingleton.measurable.ae_measurable
+
+@[simp] lemma ae_measurable_zero : ae_measurable f 0 :=
+begin
+  nontriviality α, inhabit α,
+  exact ⟨λ x, f (default α), measurable_const, rfl⟩
+end
+
+lemma ae_measurable_iff_measurable [μ.is_complete] :
+  ae_measurable f μ ↔ measurable f :=
+begin
+  split; intro h,
+  { rcases h with ⟨g, hg_meas, hfg⟩,
+    exact hg_meas.ae_eq hfg.symm, },
+  { exact h.ae_measurable, },
+end
+
 namespace ae_measurable
 
 /-- Given an almost everywhere measurable function `f`, associate to it a measurable function
@@ -2082,6 +2133,18 @@ lemma congr (hf : ae_measurable f μ) (h : f =ᵐ[μ] g) : ae_measurable g μ :=
 
 lemma mono_measure (h : ae_measurable f μ) (h' : ν ≤ μ) : ae_measurable f ν :=
 ⟨h.mk f, h.measurable_mk, eventually.filter_mono (ae_mono h') h.ae_eq_mk⟩
+
+lemma mono_set {s t} (h : s ⊆ t) (ht : ae_measurable f (μ.restrict t)) :
+  ae_measurable f (μ.restrict s) :=
+ht.mono_measure (restrict_mono h le_rfl)
+
+lemma ae_mem_imp_eq_mk {s} (h : ae_measurable f (μ.restrict s)) :
+  ∀ᵐ x ∂μ, x ∈ s → f x = h.mk f x :=
+ae_imp_of_ae_restrict h.ae_eq_mk
+
+lemma ae_inf_principal_eq_mk {s} (h : ae_measurable f (μ.restrict s)) :
+  f =ᶠ[μ.ae ⊓ 𝓟 s] h.mk f :=
+le_ae_restrict h.ae_eq_mk
 
 lemma add_measure {f : α → β} (hμ : ae_measurable f μ) (hν : ae_measurable f ν) :
   ae_measurable f (μ + ν) :=
