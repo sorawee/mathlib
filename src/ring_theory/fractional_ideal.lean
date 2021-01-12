@@ -1067,6 +1067,42 @@ begin
   apply is_noetherian_coe_to_fractional_ideal,
 end
 
+example (J' M : ideal R₁) (hM : M ≠ ⊥) (a : R₁) (hnz_a : a ≠ 0) (J = ideal.span {a}) (hMJ : M * J ≤ J')
+  (b : R₁) (hbJ : b ∈ J ∧ b ∉ J') : ((1 / ↑M) : fractional_ideal g) ≠ (1 : fractional_ideal g) :=
+begin
+  have h₂ : (g.to_map b) * (g.to_map a)⁻¹ ∈ ((1 / ↑M) : fractional_ideal g).val,
+  { rw [val_eq_coe, coe_div, submodule.mem_div_iff_forall_mul_mem],
+    rintro y hy,
+    replace hy : y ∈ (↑M : fractional_ideal g) := hy,
+    rw mem_coe_ideal at hy,
+    rcases hy with ⟨y', -, hy'⟩,
+    rw [H, ideal.mem_span_singleton'] at hbJ,
+    rcases hbJ.left with ⟨a₁, ha₁⟩,
+    rw [ha₁.symm, ring_hom.map_mul, ← hy'],
+    have hnz_ga : (to_map g a) ≠ 0 := mt (g.to_map.injective_iff.mp g.injective a) hnz_a,
+    rw [mul_comm, mul_assoc, mul_inv_cancel hnz_ga, mul_one],
+    apply mem_one_iff.mpr,
+    rw ← ring_hom.map_mul,
+    use y' * a₁,
+    simpa only [coe_to_fractional_ideal_ne_zero] },
+  have h₁ : (g.to_map b) * (g.to_map a)⁻¹ ∉ (1 : fractional_ideal g),
+  -- rw coe_one_eq_coe_submodule_one,
+  rw not_iff_not.mpr mem_one_iff,
+  -- rw mem_coe_ideal,
+  -- rw [val_eq_coe, coe_div, submodule.mem_div_iff_forall_mul_mem],
+  -- rintro y hy,
+  sorry,
+end
+
+example {I J : fractional_ideal f} (x : f.codomain) (hI : x ∈ I) (hJ : x ∉ J) :
+  I ≠ J :=
+begin
+  apply (not_iff_not_of_iff ext_iff).mp,
+  rw not_forall,
+  use x,
+  simp only [*, not_true, not_false_iff, iff_false],
+end
+
 end fractional_ideal
 
 end ring
