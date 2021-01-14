@@ -9,6 +9,9 @@ lemma d (x) : f x = x := rfl
 lemma e : f 0 = f 0 := rfl
 lemma g : f (1+0) = 1 := rfl
 
+structure x : Prop := (x : true)
+lemma h (h : x) : (⟨h.x⟩ : x) = h := rfl
+
 open tactic
 
 run_cmd do
@@ -43,6 +46,12 @@ guard res.is_none
 
 run_cmd do
 decl ← get_decl ``g,
+res ← linter.simp_subterm.test decl,
+-- linter does not complain
+guard res.is_none
+
+run_cmd do
+decl ← get_decl ``h,
 res ← linter.simp_subterm.test decl,
 -- linter does not complain
 guard res.is_none

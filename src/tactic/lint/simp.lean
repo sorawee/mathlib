@@ -222,6 +222,7 @@ tt ← pure d.is_theorem | pure none,
 ff ← is_simp_lemma d.to_name | pure none,
 tt ← is_valid_simp_lemma_cnst d.to_name | pure none,
 (lhs, rhs) ← simp_lhs_rhs d.type,
+ff ← is_proof lhs | pure none,
 ff ← simp_is_conditional d.type | pure none,
 tt ← lhs.get_app_args.many (λ a, kdepends_on a rhs) | pure none,
 retrieve' $ do
