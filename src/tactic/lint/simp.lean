@@ -221,14 +221,21 @@ private meta def simp_subterm (d : declaration) : tactic (option string) := do
 tt ← pure d.is_theorem | pure none,
 ff ← is_simp_lemma d.to_name | pure none,
 tt ← is_valid_simp_lemma_cnst d.to_name | pure none,
-(lhs, rhs) ← simp_lhs_rhs d.type,
-ff ← is_proof lhs | pure none,
 ff ← simp_is_conditional d.type | pure none,
+try_for 200000 $ retrieve $ do
+mk_meta_var d.type >>= set_goals ∘ pure,
+unfreezing intros,
+(lhs, rhs) ← target >>= simp_lhs_rhs,
+ff ← is_proof lhs | pure none,
 tt ← lhs.get_app_args.many (λ a, kdepends_on a rhs) | pure none,
-retrieve' $ do
-set_attribute `simp d.to_name ff (some 0),
-none ← simp_nf_linter 200000 d | pure none,
-lhs_rhs ← pp `(@eq ℕ %%lhs %%rhs),
+sls ← simp_lemmas.mk_default,
+(lhs', prf1) ← decorate_error "simplify fails on left-hand side:" $
+  simplify sls [] lhs {
+    fail_if_unchanged := ff,
+    proj := ff, -- many _proof_1 lemmas are of the form a * @has_one.one foo {one := foo.one} = a
+  },
+tt ← is_simp_eq lhs lhs' | pure none, -- lhs must be in simp-nf
+lhs_rhs ← target >>= pp,
 pure $ format.to_string $ "This would be a great simp lemma: " ++ lhs_rhs
 
 /-- A linter for lemmas of the form `f x = x` (etc.) that are not marked simp. -/
