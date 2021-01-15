@@ -6,6 +6,7 @@ Authors: Mario Carneiro, Kenny Lau, Scott Morrison
 import data.list.chain
 import data.list.nodup
 import data.list.of_fn
+import data.list.zip
 
 open nat
 
@@ -16,10 +17,12 @@ universe u
 
 variables {α : Type u}
 
-
 @[simp] theorem length_range' : ∀ (s n : ℕ), length (range' s n) = n
 | s 0     := rfl
 | s (n+1) := congr_arg succ (length_range' _ _)
+
+@[simp] theorem range'_eq_nil {s n : ℕ} : range' s n = [] ↔ n = 0 :=
+by rw [← length_eq_zero, length_range']
 
 @[simp] theorem mem_range' {m : ℕ} : ∀ {s n : ℕ}, m ∈ range' s n ↔ s ≤ m ∧ m < s + n
 | s 0     := (false_iff _).2 $ λ ⟨H1, H2⟩, not_le_of_lt H2 H1
@@ -100,6 +103,9 @@ by rw [range_eq_range', map_add_range']; refl
 @[simp] theorem length_range (n : ℕ) : length (range n) = n :=
 by simp only [range_eq_range', length_range']
 
+@[simp] theorem range_eq_nil {n : ℕ} : range n = [] ↔ n = 0 :=
+by rw [← length_eq_zero, length_range]
+
 theorem pairwise_lt_range (n : ℕ) : pairwise (<) (range n) :=
 by simp only [range_eq_range', pairwise_lt_range']
 
@@ -157,6 +163,8 @@ theorem reverse_range' : ∀ s n : ℕ,
 def fin_range (n : ℕ) : list (fin n) :=
 (range n).pmap fin.mk (λ _, list.mem_range.1)
 
+@[simp] lemma fin_range_zero : fin_range 0 = [] := rfl
+
 @[simp] lemma mem_fin_range {n : ℕ} (a : fin n) : a ∈ fin_range n :=
 mem_pmap.2 ⟨a.1, mem_range.2 a.2, fin.eta _ _⟩
 
@@ -165,6 +173,9 @@ nodup_pmap (λ _ _ _ _, fin.veq_of_eq) (nodup_range _)
 
 @[simp] lemma length_fin_range (n : ℕ) : (fin_range n).length = n :=
 by rw [fin_range, length_pmap, length_range]
+
+@[simp] lemma fin_range_eq_nil {n : ℕ} : fin_range n = [] ↔ n = 0 :=
+by rw [← length_eq_zero, length_fin_range]
 
 @[to_additive]
 theorem prod_range_succ {α : Type u} [monoid α] (f : ℕ → α) (n : ℕ) :
@@ -191,6 +202,22 @@ nat.rec_on n
   map prod.fst (enum l) = range l.length :=
 by simp only [enum, enum_from_map_fst, range_eq_range']
 
+lemma enum_eq_zip_range (l : list α) :
+  l.enum = (range l.length).zip l :=
+zip_of_prod (enum_map_fst _) (enum_map_snd _)
+
+@[simp] lemma unzip_enum_eq_prod (l : list α) :
+  l.enum.unzip = (range l.length, l) :=
+by simp only [enum_eq_zip_range, unzip_zip, length_range]
+
+lemma enum_from_eq_zip_range' (l : list α) {n : ℕ} :
+  l.enum_from n = (range' n l.length).zip l :=
+zip_of_prod (enum_from_map_fst _ _) (enum_from_map_snd _ _)
+
+@[simp] lemma unzip_enum_from_eq_prod (l : list α) {n : ℕ} :
+  (l.enum_from n).unzip = (range' n l.length, l) :=
+by simp only [enum_from_eq_zip_range', unzip_zip, length_range']
+
 @[simp] lemma nth_le_range {n} (i) (H : i < (range n).length) :
   nth_le (range n) i H = i :=
 option.some.inj $ by rw [← nth_le_nth _, nth_range (by simpa using H)]
@@ -199,6 +226,12 @@ theorem of_fn_eq_pmap {α n} {f : fin n → α} :
   of_fn f = pmap (λ i hi, f ⟨i, hi⟩) (range n) (λ _, mem_range.1) :=
 by rw [pmap_eq_map_attach]; from ext_le (by simp)
   (λ i hi1 hi2, by { simp at hi1, simp [nth_le_of_fn f ⟨i, hi1⟩, -subtype.val_eq_coe] })
+
+theorem of_fn_id (n) : of_fn id = fin_range n := of_fn_eq_pmap
+
+theorem of_fn_eq_map {α n} {f : fin n → α} :
+  of_fn f = (fin_range n).map f :=
+by rw [← of_fn_id, map_of_fn, function.right_id]
 
 theorem nodup_of_fn {α n} {f : fin n → α} (hf : function.injective f) :
   nodup (of_fn f) :=

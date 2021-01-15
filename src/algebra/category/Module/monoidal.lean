@@ -3,16 +3,16 @@ Copyright (c) 2020 Scott Morrison. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Kevin Buzzard, Scott Morrison
 -/
-import category_theory.monoidal.category
+import category_theory.monoidal.braided
 import algebra.category.Module.basic
 import linear_algebra.tensor_product
 
 /-!
-# The monoidal category structure on R-modules
+# The symmetric monoidal category structure on R-modules
 
 Mostly this uses existing machinery in `linear_algebra.tensor_product`.
 We just need to provide a few small missing pieces to build the
-`monoidal_category` instance.
+`monoidal_category` instance and then the `symmetric_category` instance.
 
 If you're happy using the bundled `Module R`, it may be possible to mostly
 use this as an interface and not need to interact much with the implementation details.
@@ -51,24 +51,58 @@ by tidy
 def associator (M N K : Module R) : tensor_obj (tensor_obj M N) K ≅ tensor_obj M (tensor_obj N K) :=
 linear_equiv.to_Module_iso (tensor_product.assoc R M N K)
 
-lemma associator_naturality {X₁ X₂ X₃ Y₁ Y₂ Y₃ : Module R}
-  (f₁ : X₁ ⟶ Y₁) (f₂ : X₂ ⟶ Y₂) (f₃ : X₃ ⟶ Y₃) :
-    tensor_hom (tensor_hom f₁ f₂) f₃ ≫ (associator Y₁ Y₂ Y₃).hom =
-    (associator X₁ X₂ X₃).hom ≫ tensor_hom f₁ (tensor_hom f₂ f₃) :=
+section
+
+/-! The `associator_naturality` and `pentagon` lemmas below are very slow to elaborate.
+
+We give them some help by expressing the lemmas first non-categorically, then using
+`convert _aux using 1` to have the elaborator work as little as possible. -/
+
+open tensor_product (assoc map)
+
+private lemma associator_naturality_aux
+  {X₁ X₂ X₃ : Type*}
+  [add_comm_monoid X₁] [add_comm_monoid X₂] [add_comm_monoid X₃]
+  [semimodule R X₁] [semimodule R X₂] [semimodule R X₃]
+  {Y₁ Y₂ Y₃ : Type*}
+  [add_comm_monoid Y₁] [add_comm_monoid Y₂] [add_comm_monoid Y₃]
+  [semimodule R Y₁] [semimodule R Y₂] [semimodule R Y₃]
+  (f₁ : X₁ →ₗ[R] Y₁) (f₂ : X₂ →ₗ[R] Y₂) (f₃ : X₃ →ₗ[R] Y₃) :
+  linear_map.comp ↑(assoc R Y₁ Y₂ Y₃) (map (map f₁ f₂) f₃) =
+    (map f₁ (map f₂ f₃)).comp ↑(assoc R X₁ X₂ X₃) :=
 begin
   apply tensor_product.ext_threefold,
   intros x y z,
   refl
 end
 
-lemma pentagon (W X Y Z : Module R) :
-  tensor_hom (associator W X Y).hom (𝟙 Z) ≫ (associator W (tensor_obj X Y) Z).hom ≫ tensor_hom (𝟙 W) (associator X Y Z).hom =
-    (associator (tensor_obj W X) Y Z).hom ≫ (associator W X (tensor_obj Y Z)).hom :=
+variables (R)
+
+private lemma pentagon_aux
+  (W X Y Z : Type*)
+  [add_comm_monoid W] [add_comm_monoid X] [add_comm_monoid Y] [add_comm_monoid Z]
+  [semimodule R W] [semimodule R X] [semimodule R Y] [semimodule R Z] :
+  ((map (1 : W →ₗ[R] W) (assoc R X Y Z).to_linear_map).comp (assoc R W (X ⊗[R] Y) Z).to_linear_map)
+    .comp (map ↑(assoc R W X Y) (1 : Z →ₗ[R] Z)) =
+  (assoc R W X (Y ⊗[R] Z)).to_linear_map.comp (assoc R (W ⊗[R] X) Y Z).to_linear_map :=
 begin
   apply tensor_product.ext_fourfold,
   intros w x y z,
   refl
 end
+
+end
+
+lemma associator_naturality {X₁ X₂ X₃ Y₁ Y₂ Y₃ : Module R}
+  (f₁ : X₁ ⟶ Y₁) (f₂ : X₂ ⟶ Y₂) (f₃ : X₃ ⟶ Y₃) :
+    tensor_hom (tensor_hom f₁ f₂) f₃ ≫ (associator Y₁ Y₂ Y₃).hom =
+    (associator X₁ X₂ X₃).hom ≫ tensor_hom f₁ (tensor_hom f₂ f₃) :=
+by convert associator_naturality_aux f₁ f₂ f₃ using 1
+
+lemma pentagon (W X Y Z : Module R) :
+  tensor_hom (associator W X Y).hom (𝟙 Z) ≫ (associator W (tensor_obj X Y) Z).hom ≫ tensor_hom (𝟙 W) (associator X Y Z).hom =
+    (associator (tensor_obj W X) Y Z).hom ≫ (associator W X (tensor_obj Y Z)).hom :=
+by convert pentagon_aux R W X Y Z using 1
 
 /-- (implementation) the left unitor for R-modules -/
 def left_unitor (M : Module.{u} R) : Module.of R (R ⊗[R] M) ≅ M :=
@@ -105,7 +139,7 @@ begin
   change R at y,
   dsimp [tensor_hom, associator],
   erw [tensor_product.lid_tmul, tensor_product.rid_tmul],
-  apply (tensor_product.smul_tmul _ _ _).symm
+  exact (tensor_product.smul_tmul _ _ _).symm
 end
 
 end monoidal_category
@@ -151,6 +185,55 @@ tensor_product.rid_tmul m r
 @[simp]
 lemma associator_hom_apply {M N K : Module.{u} R} (m : M) (n : N) (k : K) :
   ((α_ M N K).hom : (M ⊗ N) ⊗ K ⟶ M ⊗ (N ⊗ K)) ((m ⊗ₜ n) ⊗ₜ k) = (m ⊗ₜ (n ⊗ₜ k)) := rfl
+
+end monoidal_category
+
+/-- (implementation) the braiding for R-modules -/
+def braiding (M N : Module R) : tensor_obj M N ≅ tensor_obj N M :=
+linear_equiv.to_Module_iso (tensor_product.comm R M N)
+
+@[simp] lemma braiding_naturality {X₁ X₂ Y₁ Y₂ : Module.{u} R} (f : X₁ ⟶ Y₁) (g : X₂ ⟶ Y₂) :
+  (f ⊗ g) ≫ (Y₁.braiding Y₂).hom =
+    (X₁.braiding X₂).hom ≫ (g ⊗ f) :=
+begin
+  apply tensor_product.ext,
+  intros x y,
+  refl
+end
+
+@[simp] lemma hexagon_forward (X Y Z : Module.{u} R) :
+  (α_ X Y Z).hom ≫ (braiding X _).hom ≫ (α_ Y Z X).hom =
+  ((braiding X Y).hom ⊗ 𝟙 Z) ≫ (α_ Y X Z).hom ≫ (𝟙 Y ⊗ (braiding X Z).hom) :=
+begin
+  apply tensor_product.ext_threefold,
+  intros x y z,
+  refl,
+end
+
+@[simp] lemma hexagon_reverse (X Y Z : Module.{u} R) :
+  (α_ X Y Z).inv ≫ (braiding _ Z).hom ≫ (α_ Z X Y).inv =
+  (𝟙 X ⊗ (Y.braiding Z).hom) ≫ (α_ X Z Y).inv ≫ ((X.braiding Z).hom ⊗ 𝟙 Y) :=
+begin
+  apply (cancel_epi (α_ X Y Z).hom).1,
+  apply tensor_product.ext_threefold,
+  intros x y z,
+  refl,
+end
+
+/-- The symmetric monoidal structure on `Module R`. -/
+instance Module.symmetric_category : symmetric_category (Module.{u} R) :=
+{ braiding := braiding,
+  braiding_naturality' := λ X₁ X₂ Y₁ Y₂ f g, braiding_naturality f g,
+  hexagon_forward' := hexagon_forward,
+  hexagon_reverse' := hexagon_reverse, }
+
+namespace monoidal_category
+
+@[simp] lemma braiding_hom_apply {M N : Module.{u} R} (m : M) (n : N) :
+  ((β_ M N).hom : M ⊗ N ⟶ N ⊗ M) (m ⊗ₜ n) = n ⊗ₜ m := rfl
+
+@[simp] lemma braiding_inv_apply {M N : Module.{u} R} (m : M) (n : N) :
+  ((β_ M N).inv : N ⊗ M ⟶ M ⊗ N) (n ⊗ₜ m) = m ⊗ₜ n := rfl
 
 end monoidal_category
 

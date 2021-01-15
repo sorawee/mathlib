@@ -4,7 +4,8 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Kenny Lau, Johan Commelin
 -/
 import data.equiv.functor
-import data.mv_polynomial
+import data.mv_polynomial.equiv
+import data.mv_polynomial.comm_ring
 import ring_theory.free_ring
 
 /-!
@@ -69,6 +70,10 @@ variables {α}
 /-- The canonical map from `α` to the free commutative ring on `α`. -/
 def of (x : α) : free_comm_ring α :=
 free_abelian_group.of ([x] : multiset α)
+
+lemma of_injective : function.injective (of : α → free_comm_ring α) :=
+free_abelian_group.of_injective.comp (λ x y,
+  (multiset.coe_eq_coe.trans list.singleton_perm_singleton).mp)
 
 @[elab_as_eliminator] protected lemma induction_on
   {C : free_comm_ring α → Prop} (z : free_comm_ring α)
@@ -153,7 +158,7 @@ is_add_subgroup.neg_mem hxs
 
 theorem is_supported_sub (hxs : is_supported x s) (hys : is_supported y s) :
   is_supported (x - y) s :=
-is_add_subgroup.sub_mem _ _ _ hxs hys
+is_add_subgroup.sub_mem hxs hys
 
 theorem is_supported_mul (hxs : is_supported x s) (hys : is_supported y s) :
   is_supported (x * y) s :=

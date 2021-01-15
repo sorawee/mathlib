@@ -128,6 +128,18 @@ is_measurable_cut (λ _ b, b ∈ s) f (λ b, is_measurable.const (b ∈ s))
 protected theorem measurable [measurable_space β] (f : α →ₛ β) : measurable f :=
 λ s _, is_measurable_preimage f s
 
+protected theorem ae_measurable [measurable_space β] {μ : measure α} (f : α →ₛ β) :
+  ae_measurable f μ :=
+f.measurable.ae_measurable
+
+protected lemma sum_measure_preimage_singleton (f : α →ₛ β) {μ : measure α} (s : finset β) :
+  ∑ y in s, μ (f ⁻¹' {y}) = μ (f ⁻¹' ↑s) :=
+sum_measure_preimage_singleton _ (λ _ _, f.is_measurable_fiber _)
+
+lemma sum_range_measure_preimage_singleton (f : α →ₛ β) (μ : measure α) :
+  ∑ y in f.range, μ (f ⁻¹' {y}) = μ univ :=
+by rw [f.sum_measure_preimage_singleton, coe_range, preimage_range]
+
 /-- If-then-else as a `simple_func`. -/
 def piecewise (s : set α) (hs : is_measurable s) (f g : α →ₛ β) : α →ₛ β :=
 ⟨s.piecewise f g,
@@ -153,11 +165,15 @@ coe_injective $ by simp
 @[simp] lemma piecewise_empty (f g : α →ₛ β) : piecewise ∅ is_measurable.empty f g = g :=
 coe_injective $ by simp
 
+lemma measurable_bind [measurable_space γ] (f : α →ₛ β) (g : β → α → γ)
+  (hg : ∀ b, measurable (g b)) : measurable (λ a, g (f a) a) :=
+λ s hs, f.is_measurable_cut (λ a b, g b a ∈ s) $ λ b, hg b hs
+
 /-- If `f : α →ₛ β` is a simple function and `g : β → α →ₛ γ` is a family of simple functions,
 then `f.bind g` binds the first argument of `g` to `f`. In other words, `f.bind g a = g (f a) a`. -/
 def bind (f : α →ₛ β) (g : β → α →ₛ γ) : α →ₛ γ :=
 ⟨λa, g (f a) a,
- λ c, is_measurable_cut (λa b, g b a ∈ ({c} : set γ)) f (λ b, (g b).is_measurable_fiber c),
+ λ c, f.is_measurable_cut (λ a b, g b a = c) $ λ b, (g b).is_measurable_preimage {c},
  (f.finite_range.bUnion (λ b _, (g b).finite_range)).subset $
  by rintro _ ⟨a, rfl⟩; simp; exact ⟨a, a, rfl⟩⟩
 
@@ -269,14 +285,18 @@ instance [has_neg β] : has_neg (α →ₛ β) := ⟨λf, f.map (has_neg.neg)⟩
 
 @[simp, norm_cast] lemma coe_neg [has_neg β] (f : α →ₛ β) : ⇑(-f) = -f := rfl
 
-instance [add_group β] : add_group (α →ₛ β) :=
-function.injective.add_group (λ f, show α → β, from f) coe_injective coe_zero coe_add coe_neg
+instance [has_sub β] : has_sub (α →ₛ β) := ⟨λf g, (f.map (has_sub.sub)).seq g⟩
 
-@[simp, norm_cast] lemma coe_sub [add_group β] (f g : α →ₛ β) : ⇑(f - g) = f - g := rfl
+@[simp, norm_cast] lemma coe_sub [add_group β] (f g : α →ₛ β) : ⇑(f - g) = f - g :=
+rfl
+
+instance [add_group β] : add_group (α →ₛ β) :=
+function.injective.add_group_sub (λ f, show α → β, from f) coe_injective
+  coe_zero coe_add coe_neg coe_sub
 
 instance [add_comm_group β] : add_comm_group (α →ₛ β) :=
-function.injective.add_comm_group (λ f, show α → β, from f) coe_injective
-  coe_zero coe_add coe_neg
+function.injective.add_comm_group_sub (λ f, show α → β, from f) coe_injective
+  coe_zero coe_add coe_neg coe_sub
 
 variables {K : Type*}
 
@@ -368,12 +388,12 @@ ext $ λ x,
 if hs : is_measurable s then by simp [hs, set.indicator_comp_of_zero hg]
 else by simp [restrict_of_not_measurable hs, hg]
 
-theorem map_coe_ennreal_restrict (f : α →ₛ nnreal) (s : set α) :
-  (f.restrict s).map (coe : nnreal → ennreal) = (f.map coe).restrict s :=
+theorem map_coe_ennreal_restrict (f : α →ₛ ℝ≥0) (s : set α) :
+  (f.restrict s).map (coe : ℝ≥0 → ennreal) = (f.map coe).restrict s :=
 map_restrict_of_zero ennreal.coe_zero _ _
 
-theorem map_coe_nnreal_restrict (f : α →ₛ nnreal) (s : set α) :
-  (f.restrict s).map (coe : nnreal → ℝ) = (f.map coe).restrict s :=
+theorem map_coe_nnreal_restrict (f : α →ₛ ℝ≥0) (s : set α) :
+  (f.restrict s).map (coe : ℝ≥0 → ℝ) = (f.map coe).restrict s :=
 map_restrict_of_zero nnreal.coe_zero _ _
 
 theorem restrict_apply (f : α →ₛ β) {s : set α} (hs : is_measurable s) (a) :
@@ -442,8 +462,8 @@ by rw [approx_apply _ hf, approx_apply _ (hf.comp hg)]
 
 end
 
-lemma supr_approx_apply [topological_space β] [complete_lattice β] [order_closed_topology β] [has_zero β]
-  [measurable_space β] [opens_measurable_space β]
+lemma supr_approx_apply [topological_space β] [complete_lattice β] [order_closed_topology β]
+  [has_zero β] [measurable_space β] [opens_measurable_space β]
   (i : ℕ → β) (f : α → β) (a : α) (hf : measurable f) (h_zero : (0 : β) = ⊥) :
   (⨆n, (approx i f n : α →ₛ β) a) = (⨆k (h : i k ≤ f a), i k) :=
 begin
@@ -532,8 +552,7 @@ begin
   simp only [lintegral, range_map],
   refine finset.sum_image' _ (assume b hb, _),
   rcases mem_range.1 hb with ⟨a, rfl⟩,
-  rw [map_preimage_singleton, ← sum_measure_preimage_singleton _
-    (λ _ _, f.is_measurable_preimage _), finset.mul_sum],
+  rw [map_preimage_singleton, ← f.sum_measure_preimage_singleton, finset.mul_sum],
   refine finset.sum_congr _ _,
   { congr },
   { assume x, simp only [finset.mem_filter], rintro ⟨_, h⟩, rw h },
@@ -821,6 +840,9 @@ variables [measurable_space α] {μ : measure α}
 def lintegral (μ : measure α) (f : α → ennreal) : ennreal :=
 ⨆ (g : α →ₛ ennreal) (hf : ⇑g ≤ f), g.lintegral μ
 
+/-! In the notation for integrals, an expression like `∫⁻ x, g ∥x∥ ∂μ` will not be parsed correctly,
+  and needs parentheses. We do not set the binding power of `r` to `0`, because then
+  `∫⁻ x, f x = 0` will be parsed incorrectly. -/
 notation `∫⁻` binders `, ` r:(scoped:60 f, f) ` ∂` μ:70 := lintegral μ r
 notation `∫⁻` binders `, ` r:(scoped:60 f, lintegral volume f) := r
 notation `∫⁻` binders ` in ` s `, ` r:(scoped:60 f, f) ` ∂` μ:70 :=
@@ -841,18 +863,36 @@ lemma lintegral_mono ⦃f g : α → ennreal⦄ (hfg : f ≤ g) :
   ∫⁻ a, f a ∂μ ≤ ∫⁻ a, g a ∂μ :=
 lintegral_mono' (le_refl μ) hfg
 
+lemma lintegral_mono_nnreal {f g : α → ℝ≥0} (h : f ≤ g) :
+  ∫⁻ a, f a ∂μ ≤ ∫⁻ a, g a ∂μ :=
+begin
+  refine lintegral_mono _,
+  intro a,
+  rw ennreal.coe_le_coe,
+  exact h a,
+end
+
 lemma monotone_lintegral (μ : measure α) : monotone (lintegral μ) :=
 lintegral_mono
 
 @[simp] lemma lintegral_const (c : ennreal) : ∫⁻ a, c ∂μ = c * μ univ :=
 by rw [← simple_func.const_lintegral, ← simple_func.lintegral_eq_lintegral, simple_func.coe_const]
 
+@[simp] lemma lintegral_one : ∫⁻ a, (1 : ennreal) ∂μ = μ univ :=
+by rw [lintegral_const, one_mul]
+
+lemma set_lintegral_const (s : set α) (c : ennreal) : ∫⁻ a in s, c ∂μ = c * μ s :=
+by rw [lintegral_const, measure.restrict_apply_univ]
+
+lemma set_lintegral_one (s) : ∫⁻ a in s, 1 ∂μ = μ s :=
+by rw [set_lintegral_const, one_mul]
+
 /-- `∫⁻ a in s, f a ∂μ` is defined as the supremum of integrals of simple functions
 `φ : α →ₛ ennreal` such that `φ ≤ f`. This lemma says that it suffices to take
 functions `φ : α →ₛ ℝ≥0`. -/
 lemma lintegral_eq_nnreal (f : α → ennreal) (μ : measure α) :
   (∫⁻ a, f a ∂μ) = (⨆ (φ : α →ₛ ℝ≥0) (hf : ∀ x, ↑(φ x) ≤ f x),
-      (φ.map (coe : nnreal → ennreal)).lintegral μ) :=
+      (φ.map (coe : ℝ≥0 → ennreal)).lintegral μ) :=
 begin
   refine le_antisymm
     (bsupr_le $ assume φ hφ, _)
@@ -902,13 +942,13 @@ theorem lintegral_supr
   {f : ℕ → α → ennreal} (hf : ∀n, measurable (f n)) (h_mono : monotone f) :
   (∫⁻ a, ⨆n, f n a ∂μ) = (⨆n, ∫⁻ a, f n a ∂μ) :=
 begin
-  set c : nnreal → ennreal := coe,
+  set c : ℝ≥0 → ennreal := coe,
   set F := λ a:α, ⨆n, f n a,
   have hF : measurable F := measurable_supr hf,
   refine le_antisymm _ (supr_lintegral_le _),
   rw [lintegral_eq_nnreal],
   refine supr_le (assume s, supr_le (assume hsf, _)),
-  refine ennreal.le_of_forall_lt_one_mul_lt (assume a ha, _),
+  refine ennreal.le_of_forall_lt_one_mul_le (assume a ha, _),
   rcases ennreal.lt_iff_exists_coe.1 ha with ⟨r, rfl, ha⟩,
   have ha : r < 1 := ennreal.coe_lt_coe.1 ha,
   let rs := s.map (λa, r * a),
@@ -925,7 +965,7 @@ begin
     have : (rs.map c) x < ⨆ (n : ℕ), f n x,
     { refine lt_of_lt_of_le (ennreal.coe_lt_coe.2 (_)) (hsf x),
       suffices : r * s x < 1 * s x, simpa [rs],
-      exact mul_lt_mul_of_pos_right ha (zero_lt_iff_ne_zero.2 this) },
+      exact mul_lt_mul_of_pos_right ha (pos_iff_ne_zero.2 this) },
     rcases lt_supr_iff.1 this with ⟨i, hi⟩,
     exact mem_Union.2 ⟨i, le_of_lt hi⟩ },
   have mono : ∀r:ennreal, monotone (λn, (rs.map c) ⁻¹' {r} ∩ {a | r ≤ f n a}),
@@ -941,7 +981,7 @@ begin
     ... ≤ ∑ r in (rs.map c).range, (⨆n, r * μ ((rs.map c) ⁻¹' {r} ∩ {a | r ≤ f n a})) :
       le_of_eq (finset.sum_congr rfl $ assume x hx,
         begin
-          rw [measure_Union_eq_supr_nat _ (mono x), ennreal.mul_supr],
+          rw [measure_Union_eq_supr _ (directed_of_sup $ mono x), ennreal.mul_supr],
           { assume i,
             refine ((rs.map c).is_measurable_preimage _).inter _,
             exact hf i is_measurable_Ici }
@@ -977,16 +1017,44 @@ end
 lemma lintegral_eq_supr_eapprox_lintegral {f : α → ennreal} (hf : measurable f) :
   (∫⁻ a, f a ∂μ) = (⨆n, (eapprox f n).lintegral μ) :=
 calc (∫⁻ a, f a ∂μ) = (∫⁻ a, ⨆n, (eapprox f n : α → ennreal) a ∂μ) :
-   by congr; ext a; rw [supr_eapprox_apply f hf]
- ... = (⨆n, ∫⁻ a, (eapprox f n : α → ennreal) a ∂μ) :
- begin
-   rw [lintegral_supr],
-   { assume n, exact (eapprox f n).measurable },
-   { assume i j h, exact (monotone_eapprox f h) }
- end
- ... = (⨆n, (eapprox f n).lintegral μ) : by congr; ext n; rw [(eapprox f n).lintegral_eq_lintegral]
+  by congr; ext a; rw [supr_eapprox_apply f hf]
+... = (⨆n, ∫⁻ a, (eapprox f n : α → ennreal) a ∂μ) :
+begin
+  rw [lintegral_supr],
+  { assume n, exact (eapprox f n).measurable },
+  { assume i j h, exact (monotone_eapprox f h) }
+end
+... = (⨆n, (eapprox f n).lintegral μ) : by congr; ext n; rw [(eapprox f n).lintegral_eq_lintegral]
 
-lemma lintegral_add {f g : α → ennreal} (hf : measurable f) (hg : measurable g) :
+lemma lintegral_mono_ae {f g : α → ennreal} (h : ∀ᵐ a ∂μ, f a ≤ g a) :
+  (∫⁻ a, f a ∂μ) ≤ (∫⁻ a, g a ∂μ) :=
+begin
+  rcases exists_is_measurable_superset_of_null h with ⟨t, hts, ht, ht0⟩,
+  have : ∀ᵐ x ∂μ, x ∉ t := measure_zero_iff_ae_nmem.1 ht0,
+  refine (supr_le $ assume s, supr_le $ assume hfs,
+    le_supr_of_le (s.restrict tᶜ) $ le_supr_of_le _ _),
+  { assume a,
+    by_cases a ∈ t;
+      simp [h, restrict_apply, ht.compl],
+    exact le_trans (hfs a) (by_contradiction $ assume hnfg, h (hts hnfg)) },
+  { refine le_of_eq (simple_func.lintegral_congr $ this.mono $ λ a hnt, _),
+    by_cases hat : a ∈ t; simp [hat, ht.compl],
+    exact (hnt hat).elim }
+end
+
+lemma lintegral_congr_ae {f g : α → ennreal} (h : f =ᵐ[μ] g) :
+  (∫⁻ a, f a ∂μ) = (∫⁻ a, g a ∂μ) :=
+le_antisymm (lintegral_mono_ae $ h.le) (lintegral_mono_ae $ h.symm.le)
+
+lemma lintegral_congr {f g : α → ennreal} (h : ∀ a, f a = g a) :
+  (∫⁻ a, f a ∂μ) = (∫⁻ a, g a ∂μ) :=
+by simp only [h]
+
+lemma set_lintegral_congr {f : α → ennreal} {s t : set α} (h : s =ᵐ[μ] t) :
+  ∫⁻ x in s, f x ∂μ = ∫⁻ x in t, f x ∂μ :=
+by rw [restrict_congr_set h]
+
+@[simp] lemma lintegral_add {f g : α → ennreal} (hf : measurable f) (hg : measurable g) :
   (∫⁻ a, f a + g a ∂μ) = (∫⁻ a, f a ∂μ) + (∫⁻ a, g a ∂μ) :=
 calc (∫⁻ a, f a + g a ∂μ) =
     (∫⁻ a, (⨆n, (eapprox f n : α → ennreal) a) + (⨆n, (eapprox g n : α → ennreal) a) ∂μ) :
@@ -1013,13 +1081,26 @@ calc (∫⁻ a, f a + g a ∂μ) =
   ... = (∫⁻ a, f a ∂μ) + (∫⁻ a, g a ∂μ) :
     by rw [lintegral_eq_supr_eapprox_lintegral hf, lintegral_eq_supr_eapprox_lintegral hg]
 
+lemma lintegral_add' {f g : α → ennreal} (hf : ae_measurable f μ) (hg : ae_measurable g μ) :
+  (∫⁻ a, f a + g a ∂μ) = (∫⁻ a, f a ∂μ) + (∫⁻ a, g a ∂μ) :=
+calc (∫⁻ a, f a + g a ∂μ) = (∫⁻ a, hf.mk f a + hg.mk g a ∂μ) :
+  lintegral_congr_ae (eventually_eq.add hf.ae_eq_mk hg.ae_eq_mk)
+... = (∫⁻ a, hf.mk f a ∂μ) + (∫⁻ a, hg.mk g a ∂μ) : lintegral_add hf.measurable_mk hg.measurable_mk
+... = (∫⁻ a, f a ∂μ) + (∫⁻ a, g a ∂μ) : begin
+  congr' 1,
+  { exact lintegral_congr_ae hf.ae_eq_mk.symm },
+  { exact lintegral_congr_ae hg.ae_eq_mk.symm },
+end
+
 lemma lintegral_zero : (∫⁻ a:α, 0 ∂μ) = 0 := by simp
 
-lemma lintegral_smul_measure (c : ennreal) (f : α → ennreal) :
+lemma lintegral_zero_fun : (∫⁻ a:α, (0 : α → ennreal) a ∂μ) = 0 := by simp
+
+@[simp] lemma lintegral_smul_measure (c : ennreal) (f : α → ennreal) :
   ∫⁻ a, f a ∂ (c • μ) = c * ∫⁻ a, f a ∂μ :=
 by simp only [lintegral, supr_subtype', simple_func.lintegral_smul, ennreal.mul_supr, smul_eq_mul]
 
-lemma lintegral_sum_measure {ι} (f : α → ennreal) (μ : ι → measure α) :
+@[simp] lemma lintegral_sum_measure {ι} (f : α → ennreal) (μ : ι → measure α) :
   ∫⁻ a, f a ∂(measure.sum μ) = ∑' i, ∫⁻ a, f a ∂(μ i) :=
 begin
   simp only [lintegral, supr_subtype', simple_func.lintegral_sum, ennreal.tsum_eq_supr_sum],
@@ -1034,7 +1115,7 @@ begin
       (finset.sum_le_sum $ λ j hj, simple_func.lintegral_mono le_sup_right (le_refl _))⟩
 end
 
-lemma lintegral_add_measure (f : α → ennreal) (μ ν : measure α) :
+@[simp] lemma lintegral_add_measure (f : α → ennreal) (μ ν : measure α) :
   ∫⁻ a, f a ∂ (μ + ν) = ∫⁻ a, f a ∂μ + ∫⁻ a, f a ∂ν :=
 by simpa [tsum_fintype] using lintegral_sum_measure f (λ b, cond b μ ν)
 
@@ -1051,7 +1132,7 @@ begin
     rw [lintegral_add (hf _) (s.measurable_sum hf), ih] }
 end
 
-lemma lintegral_const_mul (r : ennreal) {f : α → ennreal} (hf : measurable f) :
+@[simp] lemma lintegral_const_mul (r : ennreal) {f : α → ennreal} (hf : measurable f) :
   (∫⁻ a, r * f a ∂μ) = r * (∫⁻ a, f a ∂μ) :=
 calc (∫⁻ a, r * f a ∂μ) = (∫⁻ a, (⨆n, (const α r * eapprox f n) a) ∂μ) :
     by { congr, funext a, rw [← supr_eapprox_apply f hf, ennreal.mul_supr], refl }
@@ -1065,6 +1146,15 @@ calc (∫⁻ a, r * f a ∂μ) = (∫⁻ a, (⨆n, (const α r * eapprox f n) a)
         (monotone_eapprox _ h _) }
   end
   ... = r * (∫⁻ a, f a ∂μ) : by rw [← ennreal.mul_supr, lintegral_eq_supr_eapprox_lintegral hf]
+
+lemma lintegral_const_mul'' (r : ennreal) {f : α → ennreal} (hf : ae_measurable f μ) :
+  (∫⁻ a, r * f a ∂μ) = r * (∫⁻ a, f a ∂μ) :=
+begin
+  have A : ∫⁻ a, f a ∂μ = ∫⁻ a, hf.mk f a ∂μ := lintegral_congr_ae hf.ae_eq_mk,
+  have B : ∫⁻ a, r * f a ∂μ = ∫⁻ a, r * hf.mk f a ∂μ :=
+    lintegral_congr_ae (eventually_eq.fun_comp hf.ae_eq_mk _),
+  rw [A, B, lintegral_const_mul _ hf.measurable_mk],
+end
 
 lemma lintegral_const_mul_le (r : ennreal) (f : α → ennreal) :
   r * (∫⁻ a, f a ∂μ) ≤ (∫⁻ a, r * f a ∂μ) :=
@@ -1093,29 +1183,28 @@ begin
     using canonically_ordered_semiring.mul_le_mul (le_refl r) this
 end
 
-lemma lintegral_mono_ae {f g : α → ennreal} (h : ∀ᵐ a ∂μ, f a ≤ g a) :
-  (∫⁻ a, f a ∂μ) ≤ (∫⁻ a, g a ∂μ) :=
-begin
-  rcases exists_is_measurable_superset_of_measure_eq_zero h with ⟨t, hts, ht, ht0⟩,
-  have : ∀ᵐ x ∂μ, x ∉ t := measure_zero_iff_ae_nmem.1 ht0,
-  refine (supr_le $ assume s, supr_le $ assume hfs,
-    le_supr_of_le (s.restrict tᶜ) $ le_supr_of_le _ _),
-  { assume a,
-    by_cases a ∈ t;
-      simp [h, restrict_apply, ht.compl],
-    exact le_trans (hfs a) (by_contradiction $ assume hnfg, h (hts hnfg)) },
-  { refine le_of_eq (simple_func.lintegral_congr $ this.mono $ λ a hnt, _),
-    by_cases hat : a ∈ t; simp [hat, ht.compl],
-    exact (hnt hat).elim }
-end
+lemma lintegral_mul_const (r : ennreal) {f : α → ennreal} (hf : measurable f) :
+  ∫⁻ a, f a * r ∂μ = ∫⁻ a, f a ∂μ * r :=
+by simp_rw [mul_comm, lintegral_const_mul r hf]
 
-lemma lintegral_congr_ae {f g : α → ennreal} (h : f =ᵐ[μ] g) :
-  (∫⁻ a, f a ∂μ) = (∫⁻ a, g a ∂μ) :=
-le_antisymm (lintegral_mono_ae $ h.le) (lintegral_mono_ae $ h.symm.le)
+lemma lintegral_mul_const'' (r : ennreal) {f : α → ennreal} (hf : ae_measurable f μ) :
+  ∫⁻ a, f a * r ∂μ = ∫⁻ a, f a ∂μ * r :=
+by simp_rw [mul_comm, lintegral_const_mul'' r hf]
 
-lemma lintegral_congr {f g : α → ennreal} (h : ∀ a, f a = g a) :
-  (∫⁻ a, f a ∂μ) = (∫⁻ a, g a ∂μ) :=
-by simp only [h]
+lemma lintegral_mul_const_le (r : ennreal) (f : α → ennreal) :
+  ∫⁻ a, f a ∂μ * r ≤ ∫⁻ a, f a * r ∂μ :=
+by simp_rw [mul_comm, lintegral_const_mul_le r f]
+
+lemma lintegral_mul_const' (r : ennreal) (f : α → ennreal) (hr : r ≠ ⊤):
+  ∫⁻ a, f a * r ∂μ = ∫⁻ a, f a ∂μ * r :=
+by simp_rw [mul_comm, lintegral_const_mul' r f hr]
+
+/- A double integral of a product where each factor contains only one variable
+  is a product of integrals -/
+lemma lintegral_lintegral_mul {β} [measurable_space β] {ν : measure β}
+  {f : α → ennreal} {g : β → ennreal} (hf : measurable f) (hg : measurable g) :
+  ∫⁻ x, ∫⁻ y, f x * g y ∂ν ∂μ = ∫⁻ x, f x ∂μ * ∫⁻ y, g y ∂ν :=
+by simp [lintegral_const_mul _ hg, lintegral_mul_const _ hf]
 
 -- TODO: Need a better way of rewriting inside of a integral
 lemma lintegral_rw₁ {f f' : α → β} (h : f =ᵐ[μ] f') (g : β → ennreal) :
@@ -1160,13 +1249,13 @@ lemma meas_ge_le_lintegral_div {f : α → ennreal} (hf : measurable f) {ε : en
 (ennreal.le_div_iff_mul_le (or.inl hε) (or.inl hε')).2 $
 by { rw [mul_comm], exact mul_meas_ge_le_lintegral hf ε }
 
-lemma lintegral_eq_zero_iff {f : α → ennreal} (hf : measurable f) :
+@[simp] lemma lintegral_eq_zero_iff {f : α → ennreal} (hf : measurable f) :
   ∫⁻ a, f a ∂μ = 0 ↔ (f =ᵐ[μ] 0) :=
 begin
   refine iff.intro (assume h, _) (assume h, _),
   { have : ∀n:ℕ, ∀ᵐ a ∂μ, f a < n⁻¹,
     { assume n,
-      rw [ae_iff, ← le_zero_iff_eq, ← @ennreal.zero_div n⁻¹,
+      rw [ae_iff, ← nonpos_iff_eq_zero, ← @ennreal.zero_div n⁻¹,
         ennreal.le_div_iff_mul_le, mul_comm],
       simp only [not_lt],
       -- TODO: why `rw ← h` fails with "not an equality or an iff"?
@@ -1181,11 +1270,23 @@ begin
       ... = 0 : lintegral_zero }
 end
 
+@[simp] lemma lintegral_eq_zero_iff' {f : α → ennreal} (hf : ae_measurable f μ) :
+  ∫⁻ a, f a ∂μ = 0 ↔ (f =ᵐ[μ] 0) :=
+begin
+  have : ∫⁻ a, f a ∂μ = ∫⁻ a, hf.mk f a ∂μ := lintegral_congr_ae hf.ae_eq_mk,
+  rw [this, lintegral_eq_zero_iff hf.measurable_mk],
+  exact ⟨λ H, hf.ae_eq_mk.trans H, λ H, hf.ae_eq_mk.symm.trans H⟩
+end
+
+lemma lintegral_pos_iff_support {f : α → ennreal} (hf : measurable f) :
+  0 < ∫⁻ a, f a ∂μ ↔ 0 < μ (function.support f) :=
+by simp [pos_iff_ne_zero, hf, filter.eventually_eq, ae_iff, function.support]
+
 /-- Weaker version of the monotone convergence theorem-/
 lemma lintegral_supr_ae {f : ℕ → α → ennreal} (hf : ∀n, measurable (f n))
   (h_mono : ∀n, ∀ᵐ a ∂μ, f n a ≤ f n.succ a) :
   (∫⁻ a, ⨆n, f n a ∂μ) = (⨆n, ∫⁻ a, f n a ∂μ) :=
-let ⟨s, hs⟩ := exists_is_measurable_superset_of_measure_eq_zero
+let ⟨s, hs⟩ := exists_is_measurable_superset_of_null
                        (ae_iff.1 (ae_all_iff.2 h_mono)) in
 let g := λ n a, if a ∈ s then 0 else f n a in
 have g_eq_f : ∀ᵐ a ∂μ, ∀n, g n a = f n a,
@@ -1268,7 +1369,7 @@ calc
      by simp only [liminf_eq_supr_infi_of_nat]
   ... = ⨆n:ℕ, ∫⁻ a, ⨅i≥n, f i a ∂μ :
     lintegral_supr
-      (assume n, measurable_binfi _ h_meas)
+      (assume n, measurable_binfi _ (countable_encodable _) h_meas)
       (assume n m hnm a, infi_le_infi_of_subset $ λ i hi, le_trans hnm hi)
   ... ≤ ⨆n:ℕ, ⨅i≥n, ∫⁻ a, f i a ∂μ :
     supr_le_supr $ λ n, le_infi2_lintegral _
@@ -1285,7 +1386,7 @@ calc
   ... = ∫⁻ a, ⨅n:ℕ, ⨆i≥n, f i a ∂μ :
     begin
       refine (lintegral_infi _ _ _).symm,
-      { assume n, exact measurable_bsupr _ hf_meas },
+      { assume n, exact measurable_bsupr _ (countable_encodable _) hf_meas },
       { assume n m hnm a, exact (supr_le_supr_of_subset $ λ i hi, le_trans hnm hi) },
       { refine lt_of_le_of_lt (lintegral_mono_ae _) h_fin,
         refine (ae_all_iff.2 h_bound).mono (λ n hn, _),
@@ -1308,6 +1409,32 @@ tendsto_of_le_liminf_of_limsup_le
 (calc limsup at_top (λ (n : ℕ), ∫⁻ a, F n a ∂μ) ≤ ∫⁻ a, limsup at_top (λn, F n a) ∂μ :
       limsup_lintegral_le hF_meas h_bound h_fin
  ... = ∫⁻ a, f a ∂μ : lintegral_congr_ae $ h_lim.mono $ λ a h, h.limsup_eq)
+
+/-- Dominated convergence theorem for nonnegative functions which are just almost everywhere
+measurable. -/
+lemma tendsto_lintegral_of_dominated_convergence'
+  {F : ℕ → α → ennreal} {f : α → ennreal} (bound : α → ennreal)
+  (hF_meas : ∀n, ae_measurable (F n) μ) (h_bound : ∀n, F n ≤ᵐ[μ] bound)
+  (h_fin : ∫⁻ a, bound a ∂μ < ⊤)
+  (h_lim : ∀ᵐ a ∂μ, tendsto (λ n, F n a) at_top (𝓝 (f a))) :
+  tendsto (λn, ∫⁻ a, F n a ∂μ) at_top (𝓝 (∫⁻ a, f a ∂μ)) :=
+begin
+  have : ∀ n, ∫⁻ a, F n a ∂μ = ∫⁻ a, (hF_meas n).mk (F n) a ∂μ :=
+    λ n, lintegral_congr_ae (hF_meas n).ae_eq_mk,
+  simp_rw this,
+  apply tendsto_lintegral_of_dominated_convergence bound (λ n, (hF_meas n).measurable_mk) _ h_fin,
+  { have : ∀ n, ∀ᵐ a ∂μ, (hF_meas n).mk (F n) a = F n a :=
+      λ n, (hF_meas n).ae_eq_mk.symm,
+    have : ∀ᵐ a ∂μ, ∀ n, (hF_meas n).mk (F n) a = F n a := ae_all_iff.mpr this,
+    filter_upwards [this, h_lim],
+    assume a H H',
+    simp_rw H,
+    exact H' },
+  { assume n,
+    filter_upwards [h_bound n, (hF_meas n).ae_eq_mk],
+    assume a H H',
+    rwa H' at H }
+end
 
 /-- Dominated convergence theorem for filters with a countable basis -/
 lemma tendsto_lintegral_filter_of_dominated_convergence {ι} {l : filter ι}
@@ -1346,12 +1473,9 @@ theorem lintegral_supr_directed [encodable β] {f : β → α → ennreal}
   (hf : ∀b, measurable (f b)) (h_directed : directed (≤) f) :
   ∫⁻ a, ⨆b, f b a ∂μ = ⨆b, ∫⁻ a, f b a ∂μ :=
 begin
-  by_cases hβ : ¬ nonempty β,
-  { have : ∀f : β → ennreal, (⨆(b : β), f b) = 0 :=
-      assume f, supr_eq_bot.2 (assume b, (hβ ⟨b⟩).elim),
-    simp [this] },
-  cases of_not_not hβ with b,
-  haveI iβ : inhabited β := ⟨b⟩, clear hβ b,
+  by_cases hβ : nonempty β, swap,
+  { simp [supr_of_empty hβ] },
+  resetI, inhabit β,
   have : ∀a, (⨆ b, f b a) = (⨆ n, f (h_directed.sequence f n) a),
   { assume a,
     refine le_antisymm (supr_le $ assume b, _) (supr_le $ assume n, le_supr (λn, f n a) _),
@@ -1400,8 +1524,7 @@ begin
 end
 
 lemma lintegral_map [measurable_space β] {f : β → ennreal} {g : α → β}
-  (hf : measurable f) (hg : measurable g) :
-  ∫⁻ a, f a ∂(map g μ) = ∫⁻ a, f (g a) ∂μ :=
+  (hf : measurable f) (hg : measurable g) : ∫⁻ a, f a ∂(map g μ) = ∫⁻ a, f (g a) ∂μ :=
 begin
   simp only [lintegral_eq_supr_eapprox_lintegral, hf, hf.comp hg],
   { congr, funext n, symmetry,
@@ -1410,16 +1533,43 @@ begin
     { assume s hs, exact map_apply hg hs } },
 end
 
+lemma lintegral_map' [measurable_space β] {f : β → ennreal} {g : α → β}
+  (hf : ae_measurable f (measure.map g μ)) (hg : measurable g) :
+  ∫⁻ a, f a ∂(measure.map g μ) = ∫⁻ a, f (g a) ∂μ :=
+calc ∫⁻ a, f a ∂(measure.map g μ) = ∫⁻ a, hf.mk f a ∂(measure.map g μ) :
+  lintegral_congr_ae hf.ae_eq_mk
+... = ∫⁻ a, hf.mk f (g a) ∂μ : lintegral_map hf.measurable_mk hg
+... = ∫⁻ a, f (g a) ∂μ : lintegral_congr_ae (ae_eq_comp hg hf.ae_eq_mk.symm)
+
+lemma lintegral_comp [measurable_space β] {f : β → ennreal} {g : α → β}
+  (hf : measurable f) (hg : measurable g) : lintegral μ (f ∘ g) = ∫⁻ a, f a ∂(map g μ) :=
+(lintegral_map hf hg).symm
+
+lemma set_lintegral_map [measurable_space β] {f : β → ennreal} {g : α → β}
+  {s : set β} (hs : is_measurable s) (hf : measurable f) (hg : measurable g) :
+  ∫⁻ y in s, f y ∂(map g μ) = ∫⁻ x in g ⁻¹' s, f (g x) ∂μ :=
+by rw [restrict_map hg hs, lintegral_map hf hg]
+
 lemma lintegral_dirac (a : α) {f : α → ennreal} (hf : measurable f) :
   ∫⁻ a, f a ∂(dirac a) = f a :=
 by simp [lintegral_congr_ae (eventually_eq_dirac hf)]
+
+lemma ae_lt_top {f : α → ennreal} (hf : measurable f) (h2f : ∫⁻ x, f x ∂μ < ⊤) :
+  ∀ᵐ x ∂μ, f x < ⊤ :=
+begin
+  simp_rw [ae_iff, ennreal.not_lt_top], by_contra h, rw [← not_le] at h2f, apply h2f,
+  have : (f ⁻¹' {⊤}).indicator ⊤ ≤ f,
+  { intro x, by_cases hx : x ∈ f ⁻¹' {⊤}; [simpa [hx], simp [hx]] },
+  convert lintegral_mono this,
+  rw [lintegral_indicator _ (hf (is_measurable_singleton ⊤))], simp [ennreal.top_mul, preimage, h]
+end
 
 /-- Given a measure `μ : measure α` and a function `f : α → ennreal`, `μ.with_density f` is the
 measure such that for a measurable set `s` we have `μ.with_density f s = ∫⁻ a in s, f a ∂μ`. -/
 def measure.with_density (μ : measure α) (f : α → ennreal) : measure α :=
 measure.of_measurable (λs hs, ∫⁻ a in s, f a ∂μ) (by simp) (λ s hs hd, lintegral_Union hs hd _)
 
-lemma with_density_apply (f : α → ennreal) {s : set α} (hs : is_measurable s) :
+@[simp] lemma with_density_apply (f : α → ennreal) {s : set α} (hs : is_measurable s) :
   μ.with_density f s = ∫⁻ a in s, f a ∂μ :=
 measure.of_measurable_apply s hs
 
@@ -1450,3 +1600,30 @@ begin
   { exact λ n, simple_func.induction (λ c s hs, h_ind c hs)
       (λ f g hfg hf hg, h_sum hfg f.measurable g.measurable hf hg) (eapprox f n) }
 end
+
+namespace measure_theory
+
+/-- This is Exercise 1.2.1 from [tao2010]. It allows you to express integration of a measurable
+function with respect to `(μ.with_density f)` as an integral with respect to `μ`, called the base
+measure. `μ` is often the Lebesgue measure, and in this circumstance `f` is the probability density
+function, and `(μ.with_density f)` represents any continuous random variable as a
+probability measure, such as the uniform distribution between 0 and 1, the Gaussian distribution,
+the exponential distribution, the Beta distribution, or the Cauchy distribution (see Section 2.4
+of [wasserman2004]). Thus, this method shows how to one can calculate expectations, variances,
+and other moments as a function of the probability density function.
+ -/
+lemma lintegral_with_density_eq_lintegral_mul {α} [measurable_space α] (μ : measure α)
+  {f : α → ennreal} (h_mf : measurable f) : ∀ {g : α → ennreal}, measurable g →
+  ∫⁻ a, g a ∂(μ.with_density f) = ∫⁻ a, (f * g) a ∂μ :=
+begin
+  apply measurable.ennreal_induction,
+  { intros c s h_ms,
+    simp [*, mul_comm _ c] },
+  { intros g h h_univ h_mea_g h_mea_h h_ind_g h_ind_h,
+    simp [mul_add, *, measurable.ennreal_mul] },
+  { intros g h_mea_g h_mono_g h_ind,
+    have : monotone (λ n a, f a * g n a) := λ m n hmn x, ennreal.mul_le_mul le_rfl (h_mono_g hmn x),
+    simp [lintegral_supr, ennreal.mul_supr, h_mf.ennreal_mul (h_mea_g _), *] }
+end
+
+end measure_theory

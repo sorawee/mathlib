@@ -19,8 +19,6 @@ export has_compl (compl)
 
 postfix `ᶜ`:(max+1) := compl
 
-section prio
-set_option default_priority 100 -- see Note [default priority]
 /-- A boolean algebra is a bounded distributive lattice with a
   complementation operation `-` such that `x ⊓ - x = ⊥` and `x ⊔ - x = ⊤`.
   This is a generalization of (classical) logic of propositions, or
@@ -29,7 +27,6 @@ class boolean_algebra α extends bounded_distrib_lattice α, has_compl α, has_s
 (inf_compl_le_bot : ∀x:α, x ⊓ xᶜ ≤ ⊥)
 (top_le_sup_compl : ∀x:α, ⊤ ≤ x ⊔ xᶜ)
 (sdiff_eq : ∀x y:α, x \ y = x ⊓ yᶜ)
-end prio
 
 section boolean_algebra
 variables [boolean_algebra α]
@@ -51,6 +48,9 @@ is_compl.of_eq inf_compl_eq_bot sup_compl_eq_top
 
 theorem is_compl.compl_eq (h : is_compl x y) : xᶜ = y :=
 (h.right_unique is_compl_compl).symm
+
+theorem disjoint_compl_right : disjoint x xᶜ := is_compl_compl.disjoint
+theorem disjoint_compl_left : disjoint xᶜ x := disjoint_compl_right.symm
 
 theorem sdiff_eq : x \ y = x ⊓ yᶜ :=
 boolean_algebra.sdiff_eq x y
@@ -103,6 +103,9 @@ by rwa [sdiff_eq, inf_eq_left, is_compl_compl.le_right_iff, disjoint_iff]
 
 theorem sdiff_le_sdiff (h₁ : w ≤ y) (h₂ : z ≤ x) : w \ x ≤ y \ z :=
 by rw [sdiff_eq, sdiff_eq]; from inf_le_inf h₁ (compl_le_compl h₂)
+
+@[simp] lemma sdiff_idem_right : x \ y \ y = x \ y :=
+by rw [sdiff_eq, sdiff_eq, inf_assoc, inf_idem]
 
 end boolean_algebra
 

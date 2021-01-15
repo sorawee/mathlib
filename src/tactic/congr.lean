@@ -83,7 +83,7 @@ meta def congr' (n : parse (with_desc "n" small_nat)?) :
   parse (tk "with" *> prod.mk <$> (rcases_patt_parse tt)* <*> (tk ":" *> small_nat)?)? →
   tactic unit
 | none         := tactic.congr' n
-| (some ⟨p, m⟩) := focus1 (tactic.congr' n >> all_goals' (ext p m))
+| (some ⟨p, m⟩) := focus1 (tactic.congr' n >> all_goals' (tactic.ext p m $> ()))
 
 /--
 Repeatedly and apply `congr'` and `ext`, using the the given patterns as arguments for `ext`.
@@ -147,6 +147,9 @@ the tactic `convert e` will change the goal to
 ```
 
 In this example, the new goal can be solved using `ring`.
+
+If `x y : t`, and an instance `subsingleton t` is in scope, then any goals of the form
+`x = y` are solved automatically.
 
 The syntax `convert ← e` will reverse the direction of the new goals
 (producing `⊢ 2 * n = n + n` in this example).

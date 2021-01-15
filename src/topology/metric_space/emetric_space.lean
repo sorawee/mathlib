@@ -26,7 +26,7 @@ The class `emetric_space` therefore extends `uniform_space` (and `topological_sp
 open set filter classical
 noncomputable theory
 
-open_locale uniformity topological_space big_operators filter
+open_locale uniformity topological_space big_operators filter nnreal
 
 universes u v w
 variables {α : Type u} {β : Type v} {γ : Type w}
@@ -70,9 +70,6 @@ uniform_space.of_core {
   symm       := tendsto_infi.2 $ assume ε, tendsto_infi.2 $ assume h,
     tendsto_infi' ε $ tendsto_infi' h $ tendsto_principal_principal.2 $ by simp [edist_comm] }
 
-section prio
-set_option default_priority 100 -- see Note [default priority]
-
 -- the uniform structure is embedded in the emetric space structure
 -- to avoid instance diamond issues. See Note [forgetful inheritance].
 
@@ -95,7 +92,6 @@ class emetric_space (α : Type u) extends has_edist α : Type u :=
 (edist_triangle : ∀ x y z : α, edist x z ≤ edist x y + edist y z)
 (to_uniform_space : uniform_space α := uniform_space_of_edist edist edist_self edist_comm edist_triangle)
 (uniformity_edist : 𝓤 α = ⨅ ε>0, 𝓟 {p:α×α | edist p.1 p.2 < ε} . control_laws_tac)
-end prio
 
 /- emetric spaces are less common than metric spaces. Therefore, we work in a dedicated
 namespace, while notions associated to metric spaces are mostly in the root namespace. -/
@@ -118,7 +114,7 @@ iff.intro (assume h, eq_of_edist_eq_zero (h.symm))
           (assume : x = y, this ▸ (edist_self _).symm)
 
 theorem edist_le_zero {x y : α} : (edist x y ≤ 0) ↔ x = y :=
-le_zero_iff_eq.trans edist_eq_zero
+nonpos_iff_eq_zero.trans edist_eq_zero
 
 /-- Triangle inequality for the extended distance -/
 theorem edist_triangle_left (x y z : α) : edist x y ≤ edist z x + edist z y :=
@@ -219,7 +215,7 @@ begin
   refine ⟨λ s, uniformity_basis_edist.mem_iff.trans _⟩,
   split,
   { rintros ⟨ε, ε₀, hε⟩,
-    rcases dense ε₀ with ⟨ε', hε'⟩,
+    rcases exists_between ε₀ with ⟨ε', hε'⟩,
     rcases hf ε' hε'.1 with ⟨i, hi, H⟩,
     exact ⟨i, hi, λ x hx, hε $ lt_of_le_of_lt (le_trans hx H) hε'.2⟩ },
   { exact λ ⟨i, hi, H⟩, ⟨f i, hf₀ i hi, λ x hx, H (le_of_lt hx)⟩ }
@@ -232,17 +228,17 @@ emetric.mk_uniformity_basis_le (λ _, id) (λ ε ε₀, ⟨ε, ε₀, le_refl ε
 theorem uniformity_basis_edist' (ε' : ennreal) (hε' : 0 < ε') :
   (𝓤 α).has_basis (λ ε : ennreal, ε ∈ Ioo 0 ε') (λ ε, {p:α×α | edist p.1 p.2 < ε}) :=
 emetric.mk_uniformity_basis (λ _, and.left)
-  (λ ε ε₀, let ⟨δ, hδ⟩ := dense hε' in
+  (λ ε ε₀, let ⟨δ, hδ⟩ := exists_between hε' in
     ⟨min ε δ, ⟨lt_min ε₀ hδ.1, lt_of_le_of_lt (min_le_right _ _) hδ.2⟩, min_le_left _ _⟩)
 
 theorem uniformity_basis_edist_le' (ε' : ennreal) (hε' : 0 < ε') :
   (𝓤 α).has_basis (λ ε : ennreal, ε ∈ Ioo 0 ε') (λ ε, {p:α×α | edist p.1 p.2 ≤ ε}) :=
 emetric.mk_uniformity_basis_le (λ _, and.left)
-  (λ ε ε₀, let ⟨δ, hδ⟩ := dense hε' in
+  (λ ε ε₀, let ⟨δ, hδ⟩ := exists_between hε' in
     ⟨min ε δ, ⟨lt_min ε₀ hδ.1, lt_of_le_of_lt (min_le_right _ _) hδ.2⟩, min_le_left _ _⟩)
 
 theorem uniformity_basis_edist_nnreal :
-  (𝓤 α).has_basis (λ ε : nnreal, 0 < ε) (λ ε, {p:α×α | edist p.1 p.2 < ε}) :=
+  (𝓤 α).has_basis (λ ε : ℝ≥0, 0 < ε) (λ ε, {p:α×α | edist p.1 p.2 < ε}) :=
 emetric.mk_uniformity_basis (λ _, ennreal.coe_pos.2)
   (λ ε ε₀, let ⟨δ, hδ⟩ := ennreal.lt_iff_exists_nnreal_btwn.1 ε₀ in
   ⟨δ, ennreal.coe_pos.1 hδ.1, le_of_lt hδ.2⟩)
@@ -262,6 +258,12 @@ namespace emetric
 
 theorem uniformity_has_countable_basis : is_countably_generated (𝓤 α) :=
 is_countably_generated_of_seq ⟨_, uniformity_basis_edist_inv_nat.eq_infi⟩
+
+/-- ε-δ characterization of uniform continuity on a set for emetric spaces -/
+theorem uniform_continuous_on_iff [emetric_space β] {f : α → β} {s : set α} :
+  uniform_continuous_on f s ↔ ∀ ε > 0, ∃ δ > 0,
+    ∀{a b}, a ∈ s → b ∈ s → edist a b < δ → edist (f a) (f b) < ε :=
+uniformity_basis_edist.uniform_continuous_on_iff uniformity_basis_edist
 
 /-- ε-δ characterization of uniform continuity on emetric spaces -/
 theorem uniform_continuous_iff [emetric_space β] {f : α → β} :
@@ -479,6 +481,9 @@ instance emetric_space_pi [∀b, emetric_space (π b)] : emetric_space (Πb, π 
     simp [set.ext_iff, εpos]
   end }
 
+lemma edist_pi_def [Π b, emetric_space (π b)] (f g : Π b, π b) :
+  edist f g = finset.sup univ (λb, edist (f b) (g b)) := rfl
+
 end pi
 
 namespace emetric
@@ -587,7 +592,7 @@ theorem tendsto_nhds {f : filter β} {u : β → α} {a : α} :
   tendsto u f (𝓝 a) ↔ ∀ ε > 0, ∀ᶠ x in f, edist (u x) a < ε :=
 nhds_basis_eball.tendsto_right_iff
 
-theorem tendsto_at_top [nonempty β] [semilattice_sup β] (u : β → α) {a : α} :
+theorem tendsto_at_top [nonempty β] [semilattice_sup β] {u : β → α} {a : α} :
   tendsto u at_top (𝓝 a) ↔ ∀ε>0, ∃N, ∀n≥N, edist (u n) a < ε :=
 (at_top_basis.tendsto_iff nhds_basis_eball).trans $
   by simp only [exists_prop, true_and, mem_Ici, mem_ball]
@@ -605,9 +610,9 @@ theorem cauchy_seq_iff' [nonempty β] [semilattice_sup β] {u : β → α} :
 uniformity_basis_edist.cauchy_seq_iff'
 
 /-- A variation of the emetric characterization of Cauchy sequences that deals with
-`nnreal` upper bounds. -/
+`ℝ≥0` upper bounds. -/
 theorem cauchy_seq_iff_nnreal [nonempty β] [semilattice_sup β] {u : β → α} :
-  cauchy_seq u ↔ ∀ ε : nnreal, 0 < ε → ∃ N, ∀ n, N ≤ n → edist (u n) (u N) < ε :=
+  cauchy_seq u ↔ ∀ ε : ℝ≥0, 0 < ε → ∃ N, ∀ n, N ≤ n → edist (u n) (u N) < ε :=
 uniformity_basis_edist_nnreal.cauchy_seq_iff'
 
 theorem totally_bounded_iff {s : set α} :
@@ -683,40 +688,7 @@ this as an instance, as there is already an instance going in the other directio
 from second countable spaces to separable spaces, and we want to avoid loops. -/
 lemma second_countable_of_separable (α : Type u) [emetric_space α] [separable_space α] :
   second_countable_topology α :=
-let ⟨S, ⟨S_countable, S_dense⟩⟩ := separable_space.exists_countable_closure_eq_univ in
-⟨⟨⋃x ∈ S, ⋃ (n : nat), {ball x (n⁻¹)},
-⟨show countable ⋃x ∈ S, ⋃ (n : nat), {ball x (n⁻¹)},
-{ apply S_countable.bUnion,
-  intros a aS,
-  apply countable_Union,
-  simp },
-show uniform_space.to_topological_space = generate_from (⋃x ∈ S, ⋃ (n : nat), {ball x (n⁻¹)}),
-{ have A : ∀ (u : set α), (u ∈ ⋃x ∈ S, ⋃ (n : nat), ({ball x ((n : ennreal)⁻¹)} : set (set α))) → is_open u,
-  { simp only [and_imp, exists_prop, set.mem_Union, set.mem_singleton_iff, exists_imp_distrib],
-    intros u x hx i u_ball,
-    rw [u_ball],
-    exact is_open_ball },
-  have B : is_topological_basis (⋃x ∈ S, ⋃ (n : nat), ({ball x (n⁻¹)} : set (set α))),
-  { refine is_topological_basis_of_open_of_nhds A (λa u au open_u, _),
-    rcases is_open_iff.1 open_u a au with ⟨ε, εpos, εball⟩,
-    have : ε / 2 > 0 := ennreal.half_pos εpos,
-    /- The ball `ball a ε` is included in `u`. We need to find one of our balls `ball x (n⁻¹)`
-    containing `a` and contained in `ball a ε`. For this, we take `n` larger than `2/ε`, and
-    then `x` in `S` at distance at most `n⁻¹` of `a` -/
-    rcases ennreal.exists_inv_nat_lt (bot_lt_iff_ne_bot.1 (ennreal.half_pos εpos)) with ⟨n, εn⟩,
-    have : (0 : ennreal) < n⁻¹ := by simp [ennreal.bot_lt_iff_ne_bot],
-    have : (a : α) ∈ closure (S : set α) := by rw [S_dense]; simp,
-    rcases mem_closure_iff.1 this _ ‹(0 : ennreal) < n⁻¹› with ⟨x, xS, xdist⟩,
-    existsi ball x (↑n)⁻¹,
-    have I : ball x (n⁻¹) ⊆ ball a ε := λy ydist, calc
-      edist y a = edist a y : edist_comm _ _
-      ... ≤ edist a x + edist y x : edist_triangle_right _ _ _
-      ... < n⁻¹ + n⁻¹ : ennreal.add_lt_add xdist ydist
-      ... < ε/2 + ε/2 : ennreal.add_lt_add εn εn
-      ... = ε : ennreal.add_halves _,
-    simp only [emetric.mem_ball, exists_prop, set.mem_Union, set.mem_singleton_iff],
-    exact ⟨⟨x, ⟨xS, ⟨n, rfl⟩⟩⟩, ⟨by simpa, subset.trans I εball⟩⟩ },
-  exact B.2.2 }⟩⟩⟩
+uniform_space.second_countable_of_separable uniformity_has_countable_basis
 
 end second_countable
 
@@ -741,7 +713,7 @@ diam_le_iff_forall_edist_le.2 h
 
 /-- The diameter of a subsingleton vanishes. -/
 lemma diam_subsingleton (hs : s.subsingleton) : diam s = 0 :=
-le_zero_iff_eq.1 $ diam_le_of_forall_edist_le $
+nonpos_iff_eq_zero.1 $ diam_le_of_forall_edist_le $
 λ x hx y hy, (hs hx hy).symm ▸ edist_self y ▸ le_refl _
 
 /-- The diameter of the empty set vanishes -/
@@ -760,7 +732,7 @@ begin
   have := not_congr (@diam_eq_zero_iff _ _ s),
   dunfold set.subsingleton at this,
   push_neg at this,
-  simpa only [zero_lt_iff_ne_zero, exists_prop] using this
+  simpa only [pos_iff_ne_zero, exists_prop] using this
 end
 
 lemma diam_insert : diam (insert x s) = max (⨆ y ∈ s, edist x y) (diam s) :=

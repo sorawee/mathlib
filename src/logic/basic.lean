@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Jeremy Avigad, Leonardo de Moura
 -/
 import tactic.doc_commands
+import tactic.reserved_notation
 
 /-!
 # Basic logic properties
@@ -84,7 +85,7 @@ theorem coe_sort_coe_trans
 Many structures such as bundled morphisms coerce to functions so that you can
 transparently apply them to arguments. For example, if `e : α ≃ β` and `a : α`
 then you can write `e a` and this is elaborated as `⇑e a`. This type of
-coercion is implemented using the `has_coe_to_fun`type class. There is one
+coercion is implemented using the `has_coe_to_fun` type class. There is one
 important consideration:
 
 If a type coerces to another type which in turn coerces to a function,
@@ -167,6 +168,8 @@ In particular, this class is not intended for turning the type class system
 into an automated theorem prover for first order logic. -/
 @[class]
 def fact (p : Prop) := p
+
+lemma fact.elim {p : Prop} (h : fact p) : p := h
 
 end miscellany
 
@@ -252,6 +255,9 @@ library_note "decidable namespace"
 protected theorem decidable.not_not [decidable a] : ¬¬a ↔ a :=
 iff.intro decidable.by_contradiction not_not_intro
 
+/-- The Double Negation Theorem: `¬ ¬ P` is equivalent to `P`.
+The left-to-right direction, double negation elimination (DNE),
+is classically true but not constructively. -/
 @[simp] theorem not_not : ¬¬a ↔ a := decidable.not_not
 
 theorem of_not_not : ¬¬a → a := by_contra
@@ -276,6 +282,13 @@ protected theorem decidable.not_imp_comm [decidable a] [decidable b] : (¬a → 
 
 theorem not_imp_comm : (¬a → b) ↔ (¬b → a) := decidable.not_imp_comm
 
+@[simp] theorem imp_not_self : (a → ¬a) ↔ ¬a := ⟨λ h ha, h ha ha, λ h _, h⟩
+
+theorem decidable.not_imp_self [decidable a] : (¬a → a) ↔ a :=
+by { have := @imp_not_self (¬a), rwa decidable.not_not at this }
+
+@[simp] theorem not_imp_self : (¬a → a) ↔ a := decidable.not_imp_self
+
 theorem imp.swap : (a → b → c) ↔ (b → a → c) :=
 ⟨function.swap, function.swap⟩
 
@@ -297,10 +310,10 @@ theorem and.imp_right (h : a → b) : c ∧ a → c ∧ b :=
 and.imp id h
 
 lemma and.right_comm : (a ∧ b) ∧ c ↔ (a ∧ c) ∧ b :=
-by simp [and.left_comm, and.comm]
+by simp only [and.left_comm, and.comm]
 
 lemma and.rotate : a ∧ b ∧ c ↔ b ∧ c ∧ a :=
-by simp [and.left_comm, and.comm]
+by simp only [and.left_comm, and.comm]
 
 theorem and_not_self_iff (a : Prop) : a ∧ ¬ a ↔ false :=
 iff.intro (assume h, (h.right) (h.left)) (assume h, h.elim)
@@ -320,8 +333,11 @@ iff.intro and.right (λ hb, ⟨h hb, hb⟩)
 @[simp] theorem and_iff_right_iff_imp {a b : Prop} : ((a ∧ b) ↔ b) ↔ (b → a) :=
 ⟨λ h ha, (h.2 ha).1, and_iff_right_of_imp⟩
 
-lemma and.congr_right_iff : (a ∧ b ↔ a ∧ c) ↔ (a → (b ↔ c)) :=
+@[simp] lemma and.congr_right_iff : (a ∧ b ↔ a ∧ c) ↔ (a → (b ↔ c)) :=
 ⟨λ h ha, by simp [ha] at h; exact h, and_congr_right⟩
+
+@[simp] lemma and.congr_left_iff : (a ∧ c ↔ b ∧ c) ↔ c → (a ↔ b) :=
+by simp only [and.comm, ← and.congr_right_iff]
 
 @[simp] lemma and_self_left : a ∧ a ∧ b ↔ a ∧ b :=
 ⟨λ h, ⟨h.1, h.2.2⟩, λ h, ⟨h.1, h.1, h.2⟩⟩
@@ -367,19 +383,29 @@ protected theorem decidable.not_imp_not [decidable a] : (¬ a → ¬ b) ↔ (b �
 
 theorem not_imp_not : (¬ a → ¬ b) ↔ (b → a) := decidable.not_imp_not
 
+@[simp] theorem or_iff_left_iff_imp : (a ∨ b ↔ a) ↔ (b → a) :=
+⟨λ h hb, h.1 (or.inr hb), or_iff_left_of_imp⟩
+
+@[simp] theorem or_iff_right_iff_imp : (a ∨ b ↔ b) ↔ (a → b) :=
+by rw [or_comm, or_iff_left_iff_imp]
+
 /-! ### Declarations about distributivity -/
 
+/-- `∧` distributes over `∨` (on the left). -/
 theorem and_or_distrib_left : a ∧ (b ∨ c) ↔ (a ∧ b) ∨ (a ∧ c) :=
 ⟨λ ⟨ha, hbc⟩, hbc.imp (and.intro ha) (and.intro ha),
  or.rec (and.imp_right or.inl) (and.imp_right or.inr)⟩
 
+/-- `∧` distributes over `∨` (on the right). -/
 theorem or_and_distrib_right : (a ∨ b) ∧ c ↔ (a ∧ c) ∨ (b ∧ c) :=
 (and.comm.trans and_or_distrib_left).trans (or_congr and.comm and.comm)
 
+/-- `∨` distributes over `∧` (on the left). -/
 theorem or_and_distrib_left : a ∨ (b ∧ c) ↔ (a ∨ b) ∧ (a ∨ c) :=
 ⟨or.rec (λha, and.intro (or.inl ha) (or.inl ha)) (and.imp or.inr or.inr),
  and.rec $ or.rec (imp_intro ∘ or.inl) (or.imp_right ∘ and.intro)⟩
 
+/-- `∨` distributes over `∧` (on the right). -/
 theorem and_or_distrib_right : (a ∧ b) ∨ c ↔ (a ∨ c) ∧ (b ∨ c) :=
 (or.comm.trans or_and_distrib_left).trans (and_congr or.comm or.comm)
 
@@ -467,9 +493,8 @@ by rw [@iff_def (¬ a), @iff_def (¬ b)]; exact and_congr decidable.not_imp_comm
 theorem not_iff_comm : (¬ a ↔ b) ↔ (¬ b ↔ a) := decidable.not_iff_comm
 
 -- See Note [decidable namespace]
-protected theorem decidable.not_iff [decidable b] : ¬ (a ↔ b) ↔ (¬ a ↔ b) :=
-by split; intro h; [split, skip]; intro h'; [by_contra, intro, skip];
-   try { refine h _; simp [*] }; rw [h', not_iff_self] at h; exact h
+protected theorem decidable.not_iff : ∀ [decidable b], ¬ (a ↔ b) ↔ (¬ a ↔ b) :=
+by intro h; cases h; simp only [h, iff_true, iff_false]
 
 theorem not_iff : ¬ (a ↔ b) ↔ (¬ a ↔ b) := decidable.not_iff
 
@@ -480,7 +505,8 @@ by rw [@iff_def a, @iff_def b]; exact and_congr imp_not_comm decidable.not_imp_c
 theorem iff_not_comm : (a ↔ ¬ b) ↔ (b ↔ ¬ a) := decidable.iff_not_comm
 
 -- See Note [decidable namespace]
-protected theorem decidable.iff_iff_and_or_not_and_not [decidable b] : (a ↔ b) ↔ (a ∧ b) ∨ (¬ a ∧ ¬ b) :=
+protected theorem decidable.iff_iff_and_or_not_and_not [decidable b] :
+  (a ↔ b) ↔ (a ∧ b) ∨ (¬ a ∧ ¬ b) :=
 by { split; intro h,
      { rw h; by_cases b; [left,right]; split; assumption },
      { cases h with h h; cases h; split; intro; { contradiction <|> assumption } } }
@@ -535,6 +561,8 @@ protected theorem decidable.not_and_distrib [decidable a] : ¬ (a ∧ b) ↔ ¬a
 protected theorem decidable.not_and_distrib' [decidable b] : ¬ (a ∧ b) ↔ ¬a ∨ ¬b :=
 ⟨λ h, if hb : b then or.inl (λ ha, h ⟨ha, hb⟩) else or.inr hb, not_and_of_not_or_not⟩
 
+/-- One of de Morgan's laws: the negation of a conjunction is logically equivalent to the
+disjunction of the negations. -/
 theorem not_and_distrib : ¬ (a ∧ b) ↔ ¬a ∨ ¬b := decidable.not_and_distrib
 
 @[simp] theorem not_and : ¬ (a ∧ b) ↔ (a → ¬ b) := and_imp
@@ -542,6 +570,8 @@ theorem not_and_distrib : ¬ (a ∧ b) ↔ ¬a ∨ ¬b := decidable.not_and_dist
 theorem not_and' : ¬ (a ∧ b) ↔ b → ¬a :=
 not_and.trans imp_not_comm
 
+/-- One of de Morgan's laws: the negation of a disjunction is logically equivalent to the
+conjunction of the negations. -/
 theorem not_or_distrib : ¬ (a ∨ b) ↔ ¬ a ∧ ¬ b :=
 ⟨λ h, ⟨λ ha, h (or.inl ha), λ hb, h (or.inr hb)⟩,
  λ ⟨h₁, h₂⟩ h, or.elim h h₁ h₂⟩
@@ -553,7 +583,8 @@ by rw [← not_or_distrib, decidable.not_not]
 theorem or_iff_not_and_not : a ∨ b ↔ ¬ (¬a ∧ ¬b) := decidable.or_iff_not_and_not
 
 -- See Note [decidable namespace]
-protected theorem decidable.and_iff_not_or_not [decidable a] [decidable b] : a ∧ b ↔ ¬ (¬ a ∨ ¬ b) :=
+protected theorem decidable.and_iff_not_or_not [decidable a] [decidable b] :
+  a ∧ b ↔ ¬ (¬ a ∨ ¬ b) :=
 by rw [← decidable.not_and_distrib, decidable.not_not]
 
 theorem and_iff_not_or_not : a ∧ b ↔ ¬ (¬ a ∨ ¬ b) := decidable.and_iff_not_or_not
@@ -623,11 +654,39 @@ variables {α : Sort*} {β : Sort*} {p q : α → Prop} {b : Prop}
 lemma forall_imp (h : ∀ a, p a → q a) : (∀ a, p a) → ∀ a, q a :=
 λ h' a, h a (h' a)
 
+lemma forall₂_congr {p q : α → β → Prop} (h : ∀ a b, p a b ↔ q a b) :
+  (∀ a b, p a b) ↔ (∀ a b, q a b) :=
+forall_congr (λ a, forall_congr (h a))
+
+lemma forall₃_congr {γ : Sort*} {p q : α → β → γ → Prop}
+  (h : ∀ a b c, p a b c ↔ q a b c) :
+  (∀ a b c, p a b c) ↔ (∀ a b c, q a b c) :=
+forall_congr (λ a, forall₂_congr (h a))
+
+lemma forall₄_congr {γ δ : Sort*} {p q : α → β → γ → δ → Prop}
+  (h : ∀ a b c d, p a b c d ↔ q a b c d) :
+  (∀ a b c d, p a b c d) ↔ (∀ a b c d, q a b c d) :=
+forall_congr (λ a, forall₃_congr (h a))
+
 lemma Exists.imp (h : ∀ a, (p a → q a)) (p : ∃ a, p a) : ∃ a, q a := exists_imp_exists h p
 
 lemma exists_imp_exists' {p : α → Prop} {q : β → Prop} (f : α → β) (hpq : ∀ a, p a → q (f a))
   (hp : ∃ a, p a) : ∃ b, q b :=
 exists.elim hp (λ a hp', ⟨_, hpq _ hp'⟩)
+
+lemma exists₂_congr {p q : α → β → Prop} (h : ∀ a b, p a b ↔ q a b) :
+  (∃ a b, p a b) ↔ (∃ a b, q a b) :=
+exists_congr (λ a, exists_congr (h a))
+
+lemma exists₃_congr {γ : Sort*} {p q : α → β → γ → Prop}
+  (h : ∀ a b c, p a b c ↔ q a b c) :
+  (∃ a b c, p a b c) ↔ (∃ a b c, q a b c) :=
+exists_congr (λ a, exists₂_congr (h a))
+
+lemma exists₄_congr {γ δ : Sort*} {p q : α → β → γ → δ → Prop}
+  (h : ∀ a b c d, p a b c d ↔ q a b c d) :
+  (∃ a b c d, p a b c d) ↔ (∃ a b c d, q a b c d) :=
+exists_congr (λ a, exists₃_congr (h a))
 
 theorem forall_swap {p : α → β → Prop} : (∀ x y, p x y) ↔ ∀ y x, p x y :=
 ⟨function.swap, function.swap⟩
@@ -721,15 +780,36 @@ by simp [and_comm]
 @[simp] theorem forall_eq {a' : α} : (∀a, a = a' → p a) ↔ p a' :=
 ⟨λ h, h a' rfl, λ h a e, e.symm ▸ h⟩
 
+@[simp] theorem forall_eq' {a' : α} : (∀a, a' = a → p a) ↔ p a' :=
+by simp [@eq_comm _ a']
+
+-- this lemma is needed to simplify the output of `list.mem_cons_iff`
+@[simp] theorem forall_eq_or_imp {a' : α} : (∀ a, a = a' ∨ q a → p a) ↔ p a' ∧ ∀ a, q a → p a :=
+by simp only [or_imp_distrib, forall_and_distrib, forall_eq]
+
 @[simp] theorem exists_eq {a' : α} : ∃ a, a = a' := ⟨_, rfl⟩
 
-@[simp] theorem exists_eq' {a' : α} : Exists (eq a') := ⟨_, rfl⟩
+@[simp] theorem exists_eq' {a' : α} : ∃ a, a' = a := ⟨_, rfl⟩
 
 @[simp] theorem exists_eq_left {a' : α} : (∃ a, a = a' ∧ p a) ↔ p a' :=
 ⟨λ ⟨a, e, h⟩, e ▸ h, λ h, ⟨_, rfl, h⟩⟩
 
 @[simp] theorem exists_eq_right {a' : α} : (∃ a, p a ∧ a = a') ↔ p a' :=
 (exists_congr $ by exact λ a, and.comm).trans exists_eq_left
+
+@[simp] theorem exists_eq_right_right {a' : α} :
+  (∃ (a : α), p a ∧ b ∧ a = a') ↔ p a' ∧ b :=
+⟨λ ⟨_, hp, hq, rfl⟩, ⟨hp, hq⟩, λ ⟨hp, hq⟩, ⟨a', hp, hq, rfl⟩⟩
+
+@[simp] theorem exists_eq_right_right' {a' : α} :
+  (∃ (a : α), p a ∧ b ∧ a' = a) ↔ p a' ∧ b :=
+⟨λ ⟨_, hp, hq, rfl⟩, ⟨hp, hq⟩, λ ⟨hp, hq⟩, ⟨a', hp, hq, rfl⟩⟩
+
+@[simp] theorem exists_apply_eq_apply {α β : Type*} (f : α → β) (a' : α) : ∃ a, f a = f a' :=
+⟨a', rfl⟩
+
+@[simp] theorem exists_apply_eq_apply' {α β : Type*} (f : α → β) (a' : α) : ∃ a, f a' = f a :=
+⟨a', rfl⟩
 
 @[simp] theorem exists_exists_and_eq_and {f : α → β} {p : α → Prop} {q : β → Prop} :
   (∃ b, (∃ a, p a ∧ f a = b) ∧ q b) ↔ ∃ a, p a ∧ q (f a) :=
@@ -739,8 +819,25 @@ by simp [and_comm]
   (∃ b, (∃ a, f a = b) ∧ p b) ↔ ∃ a, p (f a) :=
 ⟨λ ⟨b, ⟨a, ha⟩, hb⟩, ⟨a, ha.symm ▸ hb⟩, λ ⟨a, ha⟩, ⟨f a, ⟨a, rfl⟩, ha⟩⟩
 
-@[simp] theorem forall_eq' {a' : α} : (∀a, a' = a → p a) ↔ p a' :=
-by simp [@eq_comm _ a']
+@[simp] theorem forall_apply_eq_imp_iff {f : α → β} {p : β → Prop} :
+  (∀ a, ∀ b, f a = b → p b) ↔ (∀ a, p (f a)) :=
+⟨λ h a, h a (f a) rfl, λ h a b hab, hab ▸ h a⟩
+
+@[simp] theorem forall_apply_eq_imp_iff' {f : α → β} {p : β → Prop} :
+  (∀ b, ∀ a, f a = b → p b) ↔ (∀ a, p (f a)) :=
+by { rw forall_swap, simp }
+
+@[simp] theorem forall_eq_apply_imp_iff {f : α → β} {p : β → Prop} :
+  (∀ a, ∀ b, b = f a → p b) ↔ (∀ a, p (f a)) :=
+by simp [@eq_comm _ _ (f _)]
+
+@[simp] theorem forall_eq_apply_imp_iff' {f : α → β} {p : β → Prop} :
+  (∀ b, ∀ a, b = f a → p b) ↔ (∀ a, p (f a)) :=
+by { rw forall_swap, simp }
+
+@[simp] theorem forall_apply_eq_imp_iff₂ {f : α → β} {p : α → Prop} {q : β → Prop} :
+  (∀ b, ∀ a, p a → f a = b → q b) ↔ ∀ a, p a → q (f a) :=
+⟨λ h a ha, h (f a) a ha rfl, λ h b a ha hb, hb ▸ h a ha⟩
 
 @[simp] theorem exists_eq_left' {a' : α} : (∃ a, a' = a ∧ p a) ↔ p a' :=
 by simp [@eq_comm _ a']
@@ -783,6 +880,8 @@ theorem forall_iff_forall_surj
 
 @[simp] theorem exists_false : ¬ (∃a:α, false) := assume ⟨a, h⟩, h
 
+@[simp] lemma exists_unique_false : ¬ (∃! (a : α), false) := assume ⟨a, h, h'⟩, h
+
 theorem Exists.fst {p : b → Prop} : Exists p → b
 | ⟨h, _⟩ := h
 
@@ -795,7 +894,8 @@ theorem Exists.snd {p : b → Prop} : ∀ h : Exists p, p h.fst
 @[simp] theorem exists_prop_of_true {p : Prop} {q : p → Prop} (h : p) : (∃ h' : p, q h') ↔ q h :=
 @exists_const (q h) p ⟨h⟩
 
-@[simp] theorem forall_prop_of_false {p : Prop} {q : p → Prop} (hn : ¬ p) : (∀ h' : p, q h') ↔ true :=
+@[simp] theorem forall_prop_of_false {p : Prop} {q : p → Prop} (hn : ¬ p) :
+  (∀ h' : p, q h') ↔ true :=
 iff_true_intro $ λ h, hn.elim h
 
 @[simp] theorem exists_prop_of_false {p : Prop} {q : p → Prop} : ¬ p → ¬ (∃ h' : p, q h') :=
@@ -989,6 +1089,14 @@ lemma ite_eq_iff {α} {p : Prop} [decidable p] {a b c : α} :
   (if p then a else b) = c ↔ p ∧ a = c ∨ ¬p ∧ b = c :=
 by by_cases p; simp *
 
+@[simp] lemma ite_eq_left_iff {α} {p : Prop} [decidable p] {a b : α} :
+  (if p then a else b) = a ↔ (¬p → b = a) :=
+by by_cases p; simp *
+
+@[simp] lemma ite_eq_right_iff {α} {p : Prop} [decidable p] {a b : α} :
+  (if p then a else b) = b ↔ (p → a = b) :=
+by by_cases p; simp *
+
 /-! ### Declarations about `nonempty` -/
 
 section nonempty
@@ -1098,22 +1206,56 @@ end nonempty
 
 section ite
 
-lemma apply_dite {α β : Type*} (f : α → β) (P : Prop) [decidable P] (x : P → α) (y : ¬P → α) :
+/-- A function applied to a `dite` is a `dite` of that function applied to each of the branches. -/
+lemma apply_dite {α β : Sort*} (f : α → β) (P : Prop) [decidable P] (x : P → α) (y : ¬P → α) :
   f (dite P x y) = dite P (λ h, f (x h)) (λ h, f (y h)) :=
-by { by_cases h : P; simp [h], }
+by { by_cases h : P; simp [h] }
 
-lemma apply_ite {α β : Type*} (f : α → β) (P : Prop) [decidable P] (x y : α) :
+/-- A function applied to a `ite` is a `ite` of that function applied to each of the branches. -/
+lemma apply_ite {α β : Sort*} (f : α → β) (P : Prop) [decidable P] (x y : α) :
   f (ite P x y) = ite P (f x) (f y) :=
 apply_dite f P (λ _, x) (λ _, y)
 
-lemma dite_apply {α : Type*} {β : α → Type*} (P : Prop) [decidable P]
+/-- A two-argument function applied to two `dite`s is a `dite` of that two-argument function
+applied to each of the branches. -/
+lemma apply_dite2 {α β γ : Sort*} (f : α → β → γ) (P : Prop) [decidable P] (a : P → α)
+  (b : ¬P → α) (c : P → β) (d : ¬P → β) :
+  f (dite P a b) (dite P c d) = dite P (λ h, f (a h) (c h)) (λ h, f (b h) (d h)) :=
+by { by_cases h : P; simp [h] }
+
+/-- A two-argument function applied to two `ite`s is a `ite` of that two-argument function
+applied to each of the branches. -/
+lemma apply_ite2 {α β γ : Sort*} (f : α → β → γ) (P : Prop) [decidable P] (a b : α) (c d : β) :
+  f (ite P a b) (ite P c d) = ite P (f a c) (f b d) :=
+apply_dite2 f P (λ _, a) (λ _, b) (λ _, c) (λ _, d)
+
+/-- A 'dite' producing a `Pi` type `Π a, β a`, applied to a value `x : α`
+is a `dite` that applies either branch to `x`. -/
+lemma dite_apply {α : Sort*} {β : α → Sort*} (P : Prop) [decidable P]
   (f : P → Π a, β a) (g : ¬ P → Π a, β a) (x : α) :
   (dite P f g) x = dite P (λ h, f h x) (λ h, g h x) :=
-by { by_cases h : P; simp [h], }
+by { by_cases h : P; simp [h] }
 
-lemma ite_apply {α : Type*} {β : α → Type*} (P : Prop) [decidable P]
+/-- A 'ite' producing a `Pi` type `Π a, β a`, applied to a value `x : α`
+is a `ite` that applies either branch to `x` -/
+lemma ite_apply {α : Sort*} {β : α → Sort*} (P : Prop) [decidable P]
   (f g : Π a, β a) (x : α) :
   (ite P f g) x = ite P (f x) (g x) :=
 dite_apply P (λ _, f) (λ _, g) x
+
+/-- Negation of the condition `P : Prop` in a `dite` is the same as swapping the branches. -/
+@[simp] lemma dite_not {α : Sort*} (P : Prop) [decidable P] (x : ¬ P → α) (y : ¬¬ P → α) :
+  dite (¬ P) x y = dite P (λ h, y (not_not_intro h)) x :=
+by { by_cases h : P; simp [h] }
+
+/-- Negation of the condition `P : Prop` in a `ite` is the same as swapping the branches. -/
+@[simp] lemma ite_not {α : Sort*} (P : Prop) [decidable P] (x y : α) :
+  ite (¬ P) x y = ite P y x :=
+dite_not P (λ _, x) (λ _, y)
+
+lemma ite_and {α} {p q : Prop} [decidable p] [decidable q] {x y : α} :
+  ite (p ∧ q) x y = ite p (ite q x y) y :=
+by { by_cases hp : p; by_cases hq : q; simp [hp, hq] }
+
 
 end ite

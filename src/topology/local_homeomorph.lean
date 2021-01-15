@@ -135,6 +135,11 @@ lemma eventually_right_inverse' (e : local_homeomorph α β) {x} (hx : x ∈ e.s
   ∀ᶠ y in 𝓝 (e x), e (e.symm y) = y :=
 e.eventually_right_inverse (e.map_source hx)
 
+lemma eventually_ne_nhds_within (e : local_homeomorph α β) {x} (hx : x ∈ e.source) :
+  ∀ᶠ x' in 𝓝[{x}ᶜ] x, e x' ≠ e x :=
+eventually_nhds_within_iff.2 $ (e.eventually_left_inverse hx).mono $
+  λ x' hx', mt $ λ h, by rw [mem_singleton_iff, ← e.left_inv hx, ← h, hx']
+
 lemma image_eq_target_inter_inv_preimage {s : set α} (h : s ⊆ e.source) :
   e '' s = e.target ∩ e.symm ⁻¹' s :=
 e.to_local_equiv.image_eq_target_inter_inv_preimage h
@@ -496,8 +501,8 @@ section prod
 
 /-- The product of two local homeomorphisms, as a local homeomorphism on the product space. -/
 def prod (e : local_homeomorph α β) (e' : local_homeomorph γ δ) : local_homeomorph (α × γ) (β × δ) :=
-{ open_source := is_open_prod e.open_source e'.open_source,
-  open_target := is_open_prod e.open_target e'.open_target,
+{ open_source := e.open_source.prod e'.open_source,
+  open_target := e.open_target.prod e'.open_target,
   continuous_to_fun := continuous_on.prod
     (e.continuous_to_fun.comp continuous_fst.continuous_on (prod_subset_preimage_fst _ _))
     (e'.continuous_to_fun.comp continuous_snd.continuous_on (prod_subset_preimage_snd _ _)),
